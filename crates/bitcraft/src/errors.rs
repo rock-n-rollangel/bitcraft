@@ -6,6 +6,7 @@ pub enum CompileError {
     InvalidFragment,
     InvalidFieldKind,
     EmptyArrayElement,
+    InvalidFieldName,
 }
 
 
