@@ -1,7 +1,7 @@
 use crate::{
     assembly::{ArrayCount, Assemble, BitOrder, Value},
-    bit_reader::{BitReader, reverse_bits_n, sign_extend},
-    errors::{ParseError, SchemaError},
+    bits::{reverse_bits_n, sign_extend, self},
+    errors::{ReadError, CompileError},
     field::FieldKind,
 };
 
@@ -18,7 +18,7 @@ pub struct CompiledField {
 }
 
 impl TryFrom<&crate::field::Field> for CompiledField {
-    type Error = SchemaError;
+    type Error = CompileError;
 
     fn try_from(value: &crate::field::Field) -> Result<Self, Self::Error> {
         let compiled_scalar: CompiledScalar = value.try_into()?;
@@ -29,11 +29,11 @@ impl TryFrom<&crate::field::Field> for CompiledField {
             }),
             FieldKind::Array(spec) => {
                 if spec.stride_bits < compiled_scalar.total_bits {
-                    return Err(SchemaError::InvalidArrayStride);
+                    return Err(CompileError::InvalidArrayStride);
                 } else if spec.count == 0 {
-                    return Err(SchemaError::InvalidArrayCount);
+                    return Err(CompileError::InvalidArrayCount);
                 } else if value.fragments.len() == 0 {
-                    return Err(SchemaError::EmptyArrayElement);
+                    return Err(CompileError::EmptyArrayElement);
                 }
 
                 Ok(CompiledField {
@@ -59,7 +59,7 @@ pub struct CompiledArray {
 }
 
 impl CompiledArray {
-    pub fn assemble(&self, reader: &BitReader) -> Result<Value, ParseError> {
+    pub fn assemble(&self, data: &[u8]) -> Result<Value, ReadError> {
         let count = match self.count {
             ArrayCount::Fixed(count) => count,
         };
@@ -67,7 +67,7 @@ impl CompiledArray {
         let mut values = Vec::<Value>::with_capacity(count);
         for i in 0..count {
             let offset = self.offset_bits + i * self.stride_bits;
-            values.push(self.element.assemble_at(&reader, offset)?);
+            values.push(self.element.assemble_at(data, offset)?);
         }
 
         Ok(Value::Array(values))
@@ -82,7 +82,7 @@ pub struct CompiledScalar {
 }
 
 impl TryFrom<&crate::field::Field> for CompiledScalar {
-    type Error = SchemaError;
+    type Error = CompileError;
 
     fn try_from(value: &crate::field::Field) -> Result<Self, Self::Error> {
         let total_bits: usize = value
@@ -91,7 +91,7 @@ impl TryFrom<&crate::field::Field> for CompiledScalar {
             .fold(0, |acc, fragment| acc + fragment.len_bits);
 
         if total_bits == 0 || total_bits > 64 {
-            return Err(SchemaError::InvalidFieldSize);
+            return Err(CompileError::InvalidFieldSize);
         }
 
         let mut fragments = Vec::with_capacity(value.fragments.len());
@@ -130,16 +130,16 @@ impl TryFrom<&crate::field::Field> for CompiledScalar {
 }
 
 impl CompiledScalar {
-    pub fn assemble(&self, reader: &BitReader) -> Result<Value, ParseError> {
-        self.assemble_at(reader, 0)
+    pub fn assemble(&self, data: &[u8]) -> Result<Value, ReadError> {
+        self.assemble_at(data, 0)
     }
 
-    pub fn assemble_at(&self, reader: &BitReader, offset_bits: usize) -> Result<Value, ParseError> {
+    pub fn assemble_at(&self, data: &[u8], offset_bits: usize) -> Result<Value, ReadError> {
         let mut value = 0u64;
 
         for fragment in &self.fragments {
             let mut part =
-                reader.read_bits_at(fragment.offset_bits + offset_bits, fragment.len_bits)?;
+                bits::read_bits_at(data, fragment.offset_bits + offset_bits, fragment.len_bits)?;
 
             if fragment.bit_order == BitOrder::LsbFirst {
                 part = reverse_bits_n(part, fragment.len_bits);
@@ -165,11 +165,11 @@ pub struct CompiledFragment {
 }
 
 impl TryFrom<&crate::fragment::Fragment> for CompiledFragment {
-    type Error = SchemaError;
+    type Error = CompileError;
 
     fn try_from(fragment: &crate::fragment::Fragment) -> Result<Self, Self::Error> {
         if fragment.len_bits == 0 {
-            return Err(SchemaError::InvalidFragment);
+            return Err(CompileError::InvalidFragment);
         }
 
         Ok(CompiledFragment {
@@ -184,7 +184,6 @@ impl TryFrom<&crate::fragment::Fragment> for CompiledFragment {
 #[cfg(test)]
 mod tests {
     use crate::{
-        bit_reader::BitReader,
         compiled::CompiledScalar,
         field::Field,
         fragment::Fragment,
@@ -195,7 +194,6 @@ mod tests {
     #[test]
     fn test_assemble_field() {
         let data = [0b11_000001, 0b10000_101];
-        let bit_reader = BitReader::new(&data);
 
         let id_field = Field {
             name: "id".to_string(),
@@ -237,9 +235,9 @@ mod tests {
         let compiled_value_field = CompiledScalar::try_from(&value_field).unwrap();
         let compiled_crc_field = CompiledScalar::try_from(&crc_field).unwrap();
 
-        let id = compiled_id_field.assemble(&bit_reader).unwrap();
-        let value = compiled_value_field.assemble(&bit_reader).unwrap();
-        let crc = compiled_crc_field.assemble(&bit_reader).unwrap();
+        let id = compiled_id_field.assemble(&data).unwrap();
+        let value = compiled_value_field.assemble(&data).unwrap();
+        let crc = compiled_crc_field.assemble(&data).unwrap();
 
         assert_eq!(id, Value::U64(3));
         assert_eq!(value, Value::U64(48));
@@ -249,7 +247,6 @@ mod tests {
     #[test]
     fn test_non_consecutive_fragments() {
         let data: [u8; 4] = [0b00000001, 0b00000010, 0b00000100, 0b00001000];
-        let bit_reader = BitReader::new(&data);
 
         let first_value_field = Field {
             name: "first_value".to_string(),
@@ -292,17 +289,16 @@ mod tests {
         let compiled_first_value_field = CompiledScalar::try_from(&first_value_field).unwrap();
         let compiled_second_value_field = CompiledScalar::try_from(&second_value_field).unwrap();
 
-        let first_value = compiled_first_value_field.assemble(&bit_reader).unwrap();
+        let first_value = compiled_first_value_field.assemble(&data).unwrap();
         assert_eq!(first_value, Value::U64(0b00000001_00000100));
 
-        let second_value = compiled_second_value_field.assemble(&bit_reader).unwrap();
+        let second_value = compiled_second_value_field.assemble(&data).unwrap();
         assert_eq!(second_value, Value::U64(0b00000010_00001000));
     }
 
     #[test]
     fn test_assemble_concat_lsb() {
         let data: [u8; 2] = [0b00001001, 0b00001100];
-        let reader = BitReader::new(&data);
 
         let value_field = Field {
             name: "value".to_string(),
@@ -324,7 +320,7 @@ mod tests {
         };
 
         let compiled_value_field = CompiledScalar::try_from(&value_field).unwrap();
-        let value = compiled_value_field.assemble(&reader).unwrap();
+        let value = compiled_value_field.assemble(&data).unwrap();
         assert_eq!(value, Value::U64(0b11001001));
     }
 }

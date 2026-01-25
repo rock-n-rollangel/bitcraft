@@ -2,9 +2,8 @@ use std::collections::BTreeMap;
 
 use crate::{
     assembly::{ArrayCount, Value},
-    bit_reader::BitReader,
     compiled::{CompiledField, CompiledFieldKind},
-    errors::{ParseError, SchemaError},
+    errors::{ReadError, CompileError},
     field::Field,
 };
 
@@ -14,7 +13,7 @@ pub struct Schema {
 }
 
 impl Schema {
-    pub fn compile(fields: &[Field]) -> Result<Self, SchemaError> {
+    pub fn compile(fields: &[Field]) -> Result<Self, CompileError> {
         let mut compiled_fields: Vec<CompiledField> = Vec::with_capacity(fields.len());
         let mut total_bits = 0;
 
@@ -48,21 +47,20 @@ impl Schema {
         })
     }
 
-    pub fn parse(&self, data: &[u8]) -> Result<BTreeMap<String, Value>, ParseError> {
+    pub fn parse(&self, data: &[u8]) -> Result<BTreeMap<String, Value>, ReadError> {
         if data.len() * 8 < self.total_bits {
-            return Err(ParseError::PacketTooShort);
+            return Err(ReadError::PacketTooShort);
         }
 
         let mut map: BTreeMap<String, Value> = BTreeMap::new();
-        let reader = BitReader::new(data);
 
         for field in &self.fields {
             match &field.kind {
                 CompiledFieldKind::Scalar(scalar) => {
-                    map.insert(field.name.clone(), scalar.assemble(&reader)?);
+                    map.insert(field.name.clone(), scalar.assemble(data)?);
                 }
                 CompiledFieldKind::Array(array) => {
-                    map.insert(field.name.clone(), array.assemble(&reader)?);
+                    map.insert(field.name.clone(), array.assemble(data)?);
                 }
             }
         }

@@ -1,5 +1,5 @@
 pub mod assembly;
-pub mod bit_reader;
+pub mod bits;
 pub mod compiled;
 pub mod errors;
 pub mod field;

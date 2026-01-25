@@ -1,5 +1,5 @@
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum SchemaError {
+pub enum CompileError {
     InvalidArrayStride,
     InvalidArrayCount,
     InvalidFieldSize,
@@ -10,7 +10,7 @@ pub enum SchemaError {
 
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ParseError {
+pub enum ReadError {
     OutOfBounds,
     TooManyBitsRead,
     PacketTooShort,

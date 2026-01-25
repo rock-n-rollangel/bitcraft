@@ -1,0 +1,99 @@
+use crate::errors::ReadError;
+
+pub fn read_bit_at(data: &[u8], bit_pos: usize) -> Result<u8, ReadError> {
+    if bit_pos >= data.len() * 8 {
+        return Err(ReadError::OutOfBounds);
+    }
+
+    let byte_index = bit_pos / 8;
+    let bit_index = bit_pos % 8;
+
+    Ok((data[byte_index] >> (7 - bit_index)) & 1)
+}
+
+pub fn read_bits_at(data: &[u8], bit_pos: usize, n: usize) -> Result<u64, ReadError> {
+    if n > 64 {
+        return Err(ReadError::TooManyBitsRead);
+    }
+
+    if bit_pos.checked_add(n).map_or(true, |end| end > data.len() * 8) {
+        return Err(ReadError::OutOfBounds);
+    }
+
+    let mut value = 0u64;
+    let mut pos = bit_pos;
+
+    for _ in 0..n {
+        let bit = read_bit_at(&data, pos)? as u64;
+        value = (value << 1) | bit;
+        pos += 1;
+    }
+
+    Ok(value)
+}
+
+pub fn sign_extend(value: u64, bits: usize) -> i64 {
+    let shift = 64 - bits;
+    ((value << shift) as i64) >> shift
+}
+
+pub fn reverse_bits_n(mut x: u64, n: usize) -> u64 {
+    let mut r = 0u64;
+    for _ in 0..n {
+        r = (r << 1) | (x & 1);
+        x >>= 1;
+    }
+
+    r
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_read_bit_at() {
+        let data = [0b11111111];
+        assert_eq!(read_bit_at(&data, 0).unwrap(), 1);
+    }
+
+    #[test]
+    fn test_read_bits_at() {
+        let data = [0b11111111];
+        assert_eq!(read_bits_at(&data, 0, 8).unwrap(), 0b11111111);
+    }
+
+    #[test]
+    fn test_read_bits_out_of_bounds() {
+        let data = [0b11111111];
+        assert_eq!(read_bits_at(&data, 0, 9).unwrap_err(), ReadError::OutOfBounds);
+    }
+
+    #[test]
+    fn test_read_bits_more_than_64() {
+        let data = [0b11111111];
+        assert_eq!(read_bits_at(&data, 0, 65).unwrap_err(), ReadError::TooManyBitsRead);
+    }
+
+    #[test]
+    fn test_read_bits_at_out_of_bounds() {
+        let data = [0b11111111];
+        assert_eq!(read_bits_at(&data, 0, 9).unwrap_err(), ReadError::OutOfBounds);
+    }
+
+    #[test]
+    fn test_read_bits_at_more_than_64() {
+        let data = [0b11111111];
+        assert_eq!(read_bits_at(&data, 0, 65).unwrap_err(), ReadError::TooManyBitsRead);
+    }
+
+    #[test]
+    fn test_sign_extend() {
+        assert_eq!(sign_extend(0b11111111, 8), -1);
+    }
+
+    #[test]
+    fn test_reverse_bits_n() {
+        assert_eq!(reverse_bits_n(0b10101010, 8), 0b01010101);
+    }
+}
