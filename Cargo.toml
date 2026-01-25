@@ -1,13 +1,9 @@
-[package]
-name = "bitcraft"
-version = "0.1.0"
-edition = "2024"
 
-[dependencies]
+[workspace]
+members = [
+  "crates/bitcraft", "crates/bitcraft-wasm",
+]
 
-[dev-dependencies]
-criterion = "0.8.1"
-
-[[bench]]
-name = "schema_parse"
-harness = false
+[workspace.package]
+edition = "2021"
+license = "MIT"
