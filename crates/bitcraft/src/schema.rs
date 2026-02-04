@@ -1,3 +1,5 @@
+//! Schema: compiled set of fields used to parse byte slices into named values.
+
 use std::collections::BTreeMap;
 
 use crate::{
@@ -7,12 +9,15 @@ use crate::{
     field::Field,
 };
 
+/// A compiled schema: list of [CompiledField]s and total bit length. Use [Schema::compile] to build from [Field]s, then [Schema::parse] to parse bytes.
 pub struct Schema {
     total_bits: usize,
+    /// Compiled fields in definition order.
     pub fields: Vec<CompiledField>,
 }
 
 impl Schema {
+    /// Compiles a slice of [Field]s into a schema. Fails if any field is invalid.
     pub fn compile(fields: &[Field]) -> Result<Self, CompileError> {
         let mut compiled_fields: Vec<CompiledField> = Vec::with_capacity(fields.len());
         let mut total_bits = 0;
@@ -47,6 +52,7 @@ impl Schema {
         })
     }
 
+    /// Parses `data` according to this schema. Returns a map of field names to [Value]s. Fails if `data` is too short.
     pub fn parse(&self, data: &[u8]) -> Result<BTreeMap<String, Value>, ReadError> {
         if data.len() * 8 < self.total_bits {
             return Err(ReadError::PacketTooShort);

@@ -1,5 +1,10 @@
+//! Low-level bit read and manipulation utilities for byte slices.
+//!
+//! Bits are addressed in MSB-first order: bit 0 is the high bit of the first byte.
+
 use crate::errors::ReadError;
 
+/// Reads a single bit at `bit_pos` (0 = MSB of first byte). Returns 0 or 1.
 pub fn read_bit_at(data: &[u8], bit_pos: usize) -> Result<u8, ReadError> {
     if bit_pos >= data.len() * 8 {
         return Err(ReadError::OutOfBounds);
@@ -11,6 +16,7 @@ pub fn read_bit_at(data: &[u8], bit_pos: usize) -> Result<u8, ReadError> {
     Ok((data[byte_index] >> (7 - bit_index)) & 1)
 }
 
+/// Reads `n` bits starting at `bit_pos` as an unsigned value (max 64 bits). MSB-first.
 pub fn read_bits_at(data: &[u8], bit_pos: usize, n: usize) -> Result<u64, ReadError> {
     if n > 64 {
         return Err(ReadError::TooManyBitsRead);
@@ -32,11 +38,13 @@ pub fn read_bits_at(data: &[u8], bit_pos: usize, n: usize) -> Result<u64, ReadEr
     Ok(value)
 }
 
+/// Sign-extends the low `bits` of `value` to a full `i64`.
 pub fn sign_extend(value: u64, bits: usize) -> i64 {
     let shift = 64 - bits;
     ((value << shift) as i64) >> shift
 }
 
+/// Reverses the low `n` bits of `x` (LSB becomes MSB of the result).
 pub fn reverse_bits_n(mut x: u64, n: usize) -> u64 {
     let mut r = 0u64;
     for _ in 0..n {

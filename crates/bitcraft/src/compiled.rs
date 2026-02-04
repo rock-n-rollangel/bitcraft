@@ -1,3 +1,5 @@
+//! Compiled (executable) representation of fields and fragments for fast parsing.
+
 use crate::{
     assembly::{ArrayCount, Assemble, BitOrder, Value},
     bits::{reverse_bits_n, sign_extend, self},
@@ -5,12 +7,14 @@ use crate::{
     field::FieldKind,
 };
 
+/// Compiled field: either a scalar or an array.
 #[derive(Debug, Clone)]
 pub enum CompiledFieldKind {
     Scalar(CompiledScalar),
     Array(CompiledArray),
 }
 
+/// A field after compilation: name and either scalar or array layout.
 #[derive(Debug, Clone)]
 pub struct CompiledField {
     pub name: String,
@@ -50,15 +54,23 @@ impl TryFrom<&crate::field::Field> for CompiledField {
     }
 }
 
+/// Compiled array: element layout, count, stride, and start offset.
 #[derive(Debug, Clone)]
 pub struct CompiledArray {
     pub element: CompiledScalar,
+    /// Number of elements.
     pub count: ArrayCount,
+    /// Bits between the start of consecutive elements.
+    /// Works like window size to read fragments from.
+    /// Fragments will have offsets relative to the window start.
     pub stride_bits: usize,
+    /// Bit offset where the first element starts.
+    /// Global offset describes where first window should be read from.
     pub offset_bits: usize,
 }
 
 impl CompiledArray {
+    /// Assembles the array from `data` into a [Value::Array].
     pub fn assemble(&self, data: &[u8]) -> Result<Value, ReadError> {
         let count = match self.count {
             ArrayCount::Fixed(count) => count,
@@ -74,10 +86,13 @@ impl CompiledArray {
     }
 }
 
+/// Compiled scalar: total size, signedness, and list of fragments with shifts.
 #[derive(Debug, Clone)]
 pub struct CompiledScalar {
     pub signed: bool,
+    /// Total bit width (sum of fragment lengths, 1–64).
     pub total_bits: usize,
+    /// Fragments with precomputed shift for assembly.
     pub fragments: Vec<CompiledFragment>,
 }
 
@@ -130,10 +145,12 @@ impl TryFrom<&crate::field::Field> for CompiledScalar {
 }
 
 impl CompiledScalar {
+    /// Assembles the scalar from `data` starting at bit 0.
     pub fn assemble(&self, data: &[u8]) -> Result<Value, ReadError> {
         self.assemble_at(data, 0)
     }
 
+    /// Assembles the scalar from `data` starting at `offset_bits`.
     pub fn assemble_at(&self, data: &[u8], offset_bits: usize) -> Result<Value, ReadError> {
         let mut value = 0u64;
 
@@ -156,11 +173,13 @@ impl CompiledScalar {
     }
 }
 
+/// A fragment with precomputed shift for merging into the final scalar value.
 #[derive(Debug, Clone)]
 pub struct CompiledFragment {
     pub offset_bits: usize,
     pub len_bits: usize,
     pub bit_order: crate::assembly::BitOrder,
+    /// Shift to apply when OR-ing into the accumulator.
     pub shift: usize,
 }
 

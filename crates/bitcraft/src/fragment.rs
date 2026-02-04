@@ -1,6 +1,13 @@
+//! A contiguous bit range within a byte slice, with optional bit order.
+//!
+//! Used as building blocks for [crate::field::Field] definitions.
+
+/// A contiguous range of bits: start offset (in bits) and length. Bit order is configurable.
 #[derive(Debug, Clone, Copy)]
 pub struct Fragment {
+    /// Bit offset from the start of the data.
     pub offset_bits: usize,
+    /// Number of bits in this fragment.
     pub len_bits: usize,
     pub bit_order: crate::assembly::BitOrder,
 }

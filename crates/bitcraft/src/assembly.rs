@@ -1,10 +1,13 @@
+//! Assembly options for how multi-fragment fields are combined and how bits are ordered.
 
+/// How multiple [crate::fragment::Fragment]s are concatenated to form a single value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Assemble {
     ConcatMsb,
     ConcatLsb,
 }
 
+/// Bit order when reading a single fragment from the byte stream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BitOrder {
     MsbFirst,
@@ -17,6 +20,7 @@ impl Default for BitOrder {
     }
 }
 
+/// A value produced when assembling a field from raw bytes.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Value {
     I64(i64),
@@ -24,6 +28,7 @@ pub enum Value {
     Array(Vec<Value>),
 }
 
+/// Number of elements in an array field.
 #[derive(Debug, Clone)]
 pub enum ArrayCount {
     Fixed(usize),
