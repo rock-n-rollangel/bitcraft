@@ -3,8 +3,7 @@
 /// How multiple [crate::fragment::Fragment]s are concatenated to form a single value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Assemble {
-    ConcatMsb,
-    ConcatLsb,
+    Concat(BitOrder),
 }
 
 /// Bit order when reading a single fragment from the byte stream.

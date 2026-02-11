@@ -9,21 +9,21 @@
 //! ## Example
 //!
 //! ```
-//! use bitcraft::schema::Schema;
+//! use bitcraft::schema::{Schema, WriteConfig};
 //! use bitcraft::field::{Field, FieldKind};
 //! use bitcraft::fragment::Fragment;
-//! use bitcraft::assembly::Assemble;
+//! use bitcraft::assembly::{Assemble, BitOrder};
 //!
 //! let fields = vec![
 //!     Field {
 //!         name: "id".to_string(),
 //!         kind: FieldKind::Scalar,
 //!         signed: false,
-//!         assemble: Assemble::ConcatMsb,
+//!         assemble: Assemble::Concat(BitOrder::MsbFirst),
 //!         fragments: vec![Fragment { offset_bits: 0, len_bits: 8, ..Default::default() }],
 //!     },
 //! ];
-//! let schema = Schema::compile(&fields).unwrap();
+//! let schema = Schema::compile(&fields, Some(WriteConfig::default())).unwrap();
 //! let parsed = schema.parse(&[0x42]).unwrap();
 //! assert_eq!(parsed.get("id"), Some(&bitcraft::assembly::Value::U64(0x42)));
 //! ```

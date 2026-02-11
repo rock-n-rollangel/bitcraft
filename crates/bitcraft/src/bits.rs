@@ -2,7 +2,7 @@
 //!
 //! Bits are addressed in MSB-first order: bit 0 is the high bit of the first byte.
 
-use crate::errors::ReadError;
+use crate::{assembly::BitOrder, errors::ReadError};
 
 /// Reads a single bit at `bit_pos` (0 = MSB of first byte). Returns 0 or 1.
 pub fn read_bit_at(data: &[u8], bit_pos: usize) -> Result<u8, ReadError> {
@@ -22,7 +22,10 @@ pub fn read_bits_at(data: &[u8], bit_pos: usize, n: usize) -> Result<u64, ReadEr
         return Err(ReadError::TooManyBitsRead);
     }
 
-    if bit_pos.checked_add(n).map_or(true, |end| end > data.len() * 8) {
+    if bit_pos
+        .checked_add(n)
+        .map_or(true, |end| end > data.len() * 8)
+    {
         return Err(ReadError::OutOfBounds);
     }
 
@@ -55,6 +58,23 @@ pub fn reverse_bits_n(mut x: u64, n: usize) -> u64 {
     r
 }
 
+/// Converts a slice of bits to a byte vector.
+pub fn bits_to_bytes(bits: &[u8], bit_order: BitOrder) -> Vec<u8> {
+    let n_bytes = (bits.len() + 7) / 8;
+    let mut out = vec![0u8; n_bytes];
+
+    for (i, &bit) in bits.iter().enumerate() {
+        let byte_index = i / 8;
+        let bit_in_byte = match bit_order {
+            BitOrder::MsbFirst => 7 - (i % 8),
+            BitOrder::LsbFirst => i % 8,
+        };
+        out[byte_index] |= bit << bit_in_byte;
+    }
+
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -74,25 +94,37 @@ mod tests {
     #[test]
     fn test_read_bits_out_of_bounds() {
         let data = [0b11111111];
-        assert_eq!(read_bits_at(&data, 0, 9).unwrap_err(), ReadError::OutOfBounds);
+        assert_eq!(
+            read_bits_at(&data, 0, 9).unwrap_err(),
+            ReadError::OutOfBounds
+        );
     }
 
     #[test]
     fn test_read_bits_more_than_64() {
         let data = [0b11111111];
-        assert_eq!(read_bits_at(&data, 0, 65).unwrap_err(), ReadError::TooManyBitsRead);
+        assert_eq!(
+            read_bits_at(&data, 0, 65).unwrap_err(),
+            ReadError::TooManyBitsRead
+        );
     }
 
     #[test]
     fn test_read_bits_at_out_of_bounds() {
         let data = [0b11111111];
-        assert_eq!(read_bits_at(&data, 0, 9).unwrap_err(), ReadError::OutOfBounds);
+        assert_eq!(
+            read_bits_at(&data, 0, 9).unwrap_err(),
+            ReadError::OutOfBounds
+        );
     }
 
     #[test]
     fn test_read_bits_at_more_than_64() {
         let data = [0b11111111];
-        assert_eq!(read_bits_at(&data, 0, 65).unwrap_err(), ReadError::TooManyBitsRead);
+        assert_eq!(
+            read_bits_at(&data, 0, 65).unwrap_err(),
+            ReadError::TooManyBitsRead
+        );
     }
 
     #[test]

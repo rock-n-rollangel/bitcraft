@@ -19,12 +19,19 @@ pub enum AssembleDef {
 }
 
 /// Bit order to use when reading a fragment.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub enum BitOrderDef {
+    #[default]
     /// Most‑significant bit first within the fragment.
     MsbFirst,
     /// Least‑significant bit first within the fragment.
     LsbFirst,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WriteConfigDef {
+    #[serde(default)]
+    pub bit_order: BitOrderDef,
 }
 
 /// Top‑level schema definition consisting of a list of fields.
@@ -32,6 +39,8 @@ pub enum BitOrderDef {
 pub struct SchemaDef {
     /// All fields that should be parsed from the payload.
     pub fields: Vec<FieldDef>,
+    #[serde(default)]
+    pub write_config: Option<WriteConfigDef>,
 }
 
 /// Description of a single parsed field.

@@ -2,8 +2,8 @@
 
 use crate::{
     assembly::{ArrayCount, Assemble, BitOrder, Value},
-    bits::{reverse_bits_n, sign_extend, self},
-    errors::{ReadError, CompileError},
+    bits::{self, reverse_bits_n, sign_extend},
+    errors::{CompileError, ReadError, WriteError},
     field::FieldKind,
 };
 
@@ -86,6 +86,25 @@ impl CompiledArray {
     }
 }
 
+impl<'a> CompiledArray {
+    pub fn disassemble(
+        &self,
+        value: &'a Value,
+        buf: &'a mut Vec<u8>,
+    ) -> Result<&'a Vec<u8>, WriteError> {
+        match value {
+            Value::Array(values) => {
+                for value in values {
+                    self.element.disassemble(value, buf)?;
+                }
+            }
+            _ => return Err(WriteError::InvalidValue),
+        }
+
+        Ok(buf)
+    }
+}
+
 /// Compiled scalar: total size, signedness, and list of fragments with shifts.
 #[derive(Debug, Clone)]
 pub struct CompiledScalar {
@@ -112,7 +131,7 @@ impl TryFrom<&crate::field::Field> for CompiledScalar {
         let mut fragments = Vec::with_capacity(value.fragments.len());
 
         match value.assemble {
-            Assemble::ConcatMsb => {
+            Assemble::Concat(BitOrder::MsbFirst) => {
                 let mut remaining = total_bits;
                 for fragment in &value.fragments {
                     remaining -= fragment.len_bits;
@@ -123,7 +142,7 @@ impl TryFrom<&crate::field::Field> for CompiledScalar {
                     fragments.push(compiled_fragment);
                 }
             }
-            Assemble::ConcatLsb => {
+            Assemble::Concat(BitOrder::LsbFirst) => {
                 let mut shift = 0;
                 for fragment in &value.fragments {
                     let mut compiled_fragment = CompiledFragment::try_from(fragment)?;
@@ -173,6 +192,35 @@ impl CompiledScalar {
     }
 }
 
+impl<'a> CompiledScalar {
+    pub fn disassemble(
+        &self,
+        value: &'a Value,
+        buf: &'a mut Vec<u8>,
+    ) -> Result<&'a Vec<u8>, WriteError> {
+        let value = match value {
+            Value::I64(v) => *v as u64,
+            Value::U64(v) => *v,
+            Value::Array(_) => return Err(WriteError::InvalidValue),
+        };
+
+        for fragment in &self.fragments {
+            let mut part = value >> fragment.shift;
+
+            if fragment.bit_order == BitOrder::LsbFirst {
+                part = reverse_bits_n(part, fragment.len_bits);
+            }
+
+            for i in 0..fragment.len_bits {
+                let bit = (part >> (fragment.len_bits - 1 - i)) & 1;
+                buf.push(bit as u8);
+            }
+        }
+
+        Ok(buf)
+    }
+}
+
 /// A fragment with precomputed shift for merging into the final scalar value.
 #[derive(Debug, Clone)]
 pub struct CompiledFragment {
@@ -202,11 +250,7 @@ impl TryFrom<&crate::fragment::Fragment> for CompiledFragment {
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        compiled::CompiledScalar,
-        field::Field,
-        fragment::Fragment,
-    };
+    use crate::{compiled::CompiledScalar, field::Field, fragment::Fragment};
 
     use super::*;
 
@@ -218,7 +262,7 @@ mod tests {
             name: "id".to_string(),
             kind: FieldKind::Scalar,
             signed: false,
-            assemble: Assemble::ConcatMsb,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
             fragments: vec![Fragment {
                 offset_bits: 0,
                 len_bits: 2,
@@ -230,7 +274,7 @@ mod tests {
             name: "value".to_string(),
             kind: FieldKind::Scalar,
             signed: false,
-            assemble: Assemble::ConcatMsb,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
             fragments: vec![Fragment {
                 offset_bits: 2,
                 len_bits: 11,
@@ -242,7 +286,7 @@ mod tests {
             name: "crc".to_string(),
             kind: FieldKind::Scalar,
             signed: false,
-            assemble: Assemble::ConcatMsb,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
             fragments: vec![Fragment {
                 offset_bits: 13,
                 len_bits: 3,
@@ -271,7 +315,7 @@ mod tests {
             name: "first_value".to_string(),
             kind: FieldKind::Scalar,
             signed: false,
-            assemble: Assemble::ConcatMsb,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
             fragments: vec![
                 Fragment {
                     offset_bits: 0,
@@ -290,7 +334,7 @@ mod tests {
             name: "second_value".to_string(),
             kind: FieldKind::Scalar,
             signed: false,
-            assemble: Assemble::ConcatMsb,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
             fragments: vec![
                 Fragment {
                     offset_bits: 8,
@@ -323,7 +367,7 @@ mod tests {
             name: "value".to_string(),
             kind: FieldKind::Scalar,
             signed: false,
-            assemble: Assemble::ConcatLsb,
+            assemble: Assemble::Concat(BitOrder::LsbFirst),
             fragments: vec![
                 Fragment {
                     offset_bits: 4,
@@ -341,5 +385,60 @@ mod tests {
         let compiled_value_field = CompiledScalar::try_from(&value_field).unwrap();
         let value = compiled_value_field.assemble(&data).unwrap();
         assert_eq!(value, Value::U64(0b11001001));
+    }
+
+    #[test]
+    fn compile_scalar_concat_msb_shifts() {
+        let field = Field {
+            name: "x".to_string(),
+            kind: FieldKind::Scalar,
+            signed: false,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
+            fragments: vec![
+                Fragment {
+                    offset_bits: 0,
+                    len_bits: 3,
+                    ..Default::default()
+                },
+                Fragment {
+                    offset_bits: 5,
+                    len_bits: 5,
+                    ..Default::default()
+                },
+            ],
+        };
+
+        let compiled = CompiledScalar::try_from(&field).unwrap();
+
+        // total_bits = 8
+        assert_eq!(compiled.fragments[0].shift, 5);
+        assert_eq!(compiled.fragments[1].shift, 0);
+    }
+
+    #[test]
+    fn compile_scalar_concat_lsb_shifts() {
+        let field = Field {
+            name: "x".to_string(),
+            kind: FieldKind::Scalar,
+            signed: false,
+            assemble: Assemble::Concat(BitOrder::LsbFirst),
+            fragments: vec![
+                Fragment {
+                    offset_bits: 0,
+                    len_bits: 3,
+                    ..Default::default()
+                },
+                Fragment {
+                    offset_bits: 5,
+                    len_bits: 5,
+                    ..Default::default()
+                },
+            ],
+        };
+
+        let compiled = CompiledScalar::try_from(&field).unwrap();
+
+        assert_eq!(compiled.fragments[0].shift, 0);
+        assert_eq!(compiled.fragments[1].shift, 3);
     }
 }

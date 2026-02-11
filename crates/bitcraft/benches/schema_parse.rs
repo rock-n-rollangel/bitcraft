@@ -1,5 +1,5 @@
 use bitcraft::{
-    assembly::Assemble,
+    assembly::{Assemble, BitOrder},
     field::{Field, FieldKind},
     fragment::Fragment,
     schema::Schema,
@@ -14,7 +14,7 @@ fn gen_schema(field_count: usize) -> Schema {
             name: format!("f{}", i),
             kind: FieldKind::Scalar,
             signed: false,
-            assemble: Assemble::ConcatMsb,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
             fragments: vec![Fragment {
                 offset_bits: i * 16,
                 len_bits: 16,
@@ -23,7 +23,7 @@ fn gen_schema(field_count: usize) -> Schema {
         });
     }
 
-    Schema::compile(&fields).unwrap()
+    Schema::compile(&fields, None).unwrap()
 }
 
 fn gen_packet(total_bits: usize) -> Vec<u8> {

@@ -20,7 +20,6 @@ use bitcraft::{
 use bitcraft_transform::{Base, Encoding, Transform};
 use serde::Serialize;
 use wasm_bindgen::JsValue;
-
 use crate::{
     schema_def::*,
     transform_def::{BaseDef, EncodingDef, TransformDef},
@@ -50,10 +49,10 @@ type Error = bitcraft::errors::CompileError;
 /// This performs basic validation (for example non‑empty names, valid fragment
 /// sizes, and sensible array specs) and returns a `CompileError` if anything
 /// is inconsistent.
-pub fn schema_def_to_fields(def: SchemaDef) -> Result<Vec<Field>, Error> {
+pub fn schema_def_to_fields(def: &SchemaDef) -> Result<Vec<Field>, Error> {
     let mut out = Vec::with_capacity(def.fields.len());
 
-    for f in def.fields {
+    for f in &def.fields {
         out.push(field_def_to_field(f)?);
     }
 
@@ -84,7 +83,7 @@ pub fn schema_def_to_transforms(
 ///
 /// Validation performed here is intentionally strict so that problems are
 /// caught at compile time rather than when parsing a payload.
-fn field_def_to_field(def: FieldDef) -> Result<Field, Error> {
+fn field_def_to_field(def: &FieldDef) -> Result<Field, Error> {
     if def.name.trim().is_empty() {
         return Err(Error::InvalidFieldName);
     }
@@ -114,19 +113,19 @@ fn field_def_to_field(def: FieldDef) -> Result<Field, Error> {
         }
     };
 
-    let assemble = assemble_def_to_core(def.assemble);
+    let assemble = assemble_def_to_core(&def.assemble);
     let fragments = def
         .fragments
-        .into_iter()
+        .iter()
         .map(fragment_def_to_fragment)
         .collect::<Result<Vec<_>, _>>()?;
 
     Ok(Field {
-        name: def.name,
+        name: def.name.clone(),
         kind,
         signed: def.signed,
         assemble,
-        fragments,
+        fragments: fragments.clone(),
     })
 }
 
@@ -135,7 +134,7 @@ fn field_def_to_field(def: FieldDef) -> Result<Field, Error> {
 /// Enforces a positive `len_bits` and translates the optional
 /// [`BitOrderDef`](crate::schema_def::BitOrderDef) into a concrete `BitOrder`,
 /// defaulting to most‑significant‑bit first when not provided.
-fn fragment_def_to_fragment(def: FragmentDef) -> Result<Fragment, Error> {
+fn fragment_def_to_fragment(def: &FragmentDef) -> Result<Fragment, Error> {
     if def.len_bits == 0 {
         return Err(Error::InvalidFragment);
     }
@@ -154,10 +153,10 @@ fn fragment_def_to_fragment(def: FragmentDef) -> Result<Fragment, Error> {
 }
 
 /// Maps the JSON‑level assemble strategy onto the core [`Assemble`] enum.
-fn assemble_def_to_core(def: AssembleDef) -> Assemble {
+fn assemble_def_to_core(def: &AssembleDef) -> Assemble {
     match def {
-        AssembleDef::ConcatMsb => Assemble::ConcatMsb,
-        AssembleDef::ConcatLsb => Assemble::ConcatLsb,
+        AssembleDef::ConcatMsb => Assemble::Concat(BitOrder::MsbFirst),
+        AssembleDef::ConcatLsb => Assemble::Concat(BitOrder::LsbFirst),
     }
 }
 
@@ -199,7 +198,7 @@ pub fn map_to_js(map: BTreeMap<String, bitcraft_transform::Value>) -> Result<JsV
 
     serde_wasm_bindgen::to_value(&out).map_err(error_to_js)
 }
- 
+
 /// Builds a concrete `bitcraft_transform::Transform` from a JSON‑level definition.
 fn transform_def_to_transform(def: &TransformDef) -> Result<bitcraft_transform::Transform, Error> {
     Ok(Transform {
@@ -221,14 +220,59 @@ fn transform_def_to_transform(def: &TransformDef) -> Result<bitcraft_transform::
         enum_map: def.enum_map.clone(),
     })
 }
- 
+
 /// Converts any debug‑printable error into a `JsValue` with a human‑readable message.
 ///
 /// This keeps the surface area of error handling small on the JavaScript side
 /// while still retaining detailed information that can be logged or surfaced
 /// in developer tools.
 pub fn error_to_js<T>(e: T) -> JsValue
-where T: std::fmt::Debug
+where
+    T: std::fmt::Debug,
 {
-  JsValue::from_str(&format!("{e:?}"))
+    JsValue::from_str(&format!("{e:?}"))
+}
+
+pub fn write_config_def_to_write_config(
+    def: &SchemaDef,
+) -> Result<Option<bitcraft::schema::WriteConfig>, Error> {
+    Ok(match &def.write_config {
+        Some(write_config) => Some(bitcraft::schema::WriteConfig {
+            bit_order: match write_config.bit_order {
+                BitOrderDef::MsbFirst => BitOrder::MsbFirst,
+                BitOrderDef::LsbFirst => BitOrder::LsbFirst,
+            },
+        }),
+        None => None,
+    })
+}
+
+pub fn convert_json_value(v: serde_json::Value) -> Result<bitcraft::assembly::Value, JsValue> {
+    match v {
+        serde_json::Value::Number(n) => {
+            if let Some(i) = n.as_i64() {
+                return Ok(bitcraft::assembly::Value::I64(i));
+            }
+
+            if let Some(u) = n.as_u64() {
+                return Ok(bitcraft::assembly::Value::U64(u));
+            }
+
+            if let Some(f) = n.as_f64() {
+                return Ok(bitcraft::assembly::Value::U64(f.to_bits())); // float as raw bits
+            }
+
+            Err(JsValue::from_str("Invalid number"))
+        }
+
+        serde_json::Value::Array(arr) => {
+            let mut out = Vec::with_capacity(arr.len());
+            for item in arr {
+                out.push(convert_json_value(item)?);
+            }
+            Ok(bitcraft::assembly::Value::Array(out))
+        }
+
+        _ => Err(JsValue::from_str("Unsupported value type")),
+    }
 }

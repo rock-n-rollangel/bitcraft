@@ -1,24 +1,41 @@
 //! Schema: compiled set of fields used to parse byte slices into named values.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::{
-    assembly::{ArrayCount, Value},
+    assembly::{ArrayCount, BitOrder, Value},
+    bits,
     compiled::{CompiledField, CompiledFieldKind},
-    errors::{ReadError, CompileError},
+    errors::{CompileError, ReadError, WriteError},
     field::Field,
 };
+
+pub struct WriteConfig {
+    pub bit_order: BitOrder,
+}
+
+impl Default for WriteConfig {
+    fn default() -> Self {
+        WriteConfig {
+            bit_order: BitOrder::MsbFirst,
+        }
+    }
+}
 
 /// A compiled schema: list of [CompiledField]s and total bit length. Use [Schema::compile] to build from [Field]s, then [Schema::parse] to parse bytes.
 pub struct Schema {
     total_bits: usize,
     /// Compiled fields in definition order.
     pub fields: Vec<CompiledField>,
+    pub write_config: Option<WriteConfig>,
 }
 
 impl Schema {
     /// Compiles a slice of [Field]s into a schema. Fails if any field is invalid.
-    pub fn compile(fields: &[Field]) -> Result<Self, CompileError> {
+    pub fn compile(
+        fields: &[Field],
+        write_config: Option<WriteConfig>,
+    ) -> Result<Self, CompileError> {
         let mut compiled_fields: Vec<CompiledField> = Vec::with_capacity(fields.len());
         let mut total_bits = 0;
 
@@ -49,6 +66,7 @@ impl Schema {
         Ok(Self {
             fields: compiled_fields,
             total_bits,
+            write_config,
         })
     }
 
@@ -73,12 +91,39 @@ impl Schema {
 
         Ok(map)
     }
+
+    pub fn serialize(&self, obj: &HashMap<String, Value>) -> Result<Vec<u8>, WriteError> {
+        let mut bits: Vec<u8> = Vec::new();
+
+        for field in &self.fields {
+            let value = obj
+                .get(&field.name)
+                .ok_or_else(|| WriteError::MissingField(field.name.clone()))?;
+
+            match &field.kind {
+                CompiledFieldKind::Scalar(scalar) => {
+                    scalar.disassemble(value, &mut bits)?;
+                }
+                CompiledFieldKind::Array(array) => {
+                    array.disassemble(value, &mut bits)?;
+                }
+            }
+        }
+
+        Ok(bits::bits_to_bytes(
+            &bits,
+            match &self.write_config {
+                Some(config) => config.bit_order,
+                None => BitOrder::MsbFirst,
+            },
+        ))
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::{
-        assembly::Assemble,
+        assembly::{Assemble, BitOrder},
         field::{ArraySpec, Field, FieldKind},
         fragment::Fragment,
     };
@@ -87,7 +132,7 @@ mod tests {
 
     #[test]
     fn test_get_all_empty() {
-        let schema = Schema::compile(&vec![]).unwrap();
+        let schema = Schema::compile(&vec![], None).unwrap();
         let data = vec![0x01, 0x02, 0x03, 0x04];
         let result = schema.parse(&data);
         assert_eq!(result, Ok(BTreeMap::new()));
@@ -99,14 +144,14 @@ mod tests {
             name: "test".to_string(),
             kind: FieldKind::Scalar,
             signed: false,
-            assemble: Assemble::ConcatMsb,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
             fragments: vec![Fragment {
                 offset_bits: 0,
                 len_bits: 1,
                 ..Default::default()
             }],
         };
-        let schema = Schema::compile(&vec![field]).unwrap();
+        let schema = Schema::compile(&vec![field], None).unwrap();
         let data = vec![0x01, 0x02, 0x03, 0x04];
         let result = schema.parse(&data);
         assert_eq!(
@@ -121,7 +166,7 @@ mod tests {
             name: "test1".to_string(),
             kind: FieldKind::Scalar,
             signed: false,
-            assemble: Assemble::ConcatMsb,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
             fragments: vec![Fragment {
                 offset_bits: 0,
                 len_bits: 8,
@@ -132,14 +177,14 @@ mod tests {
             name: "test2".to_string(),
             kind: FieldKind::Scalar,
             signed: false,
-            assemble: Assemble::ConcatMsb,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
             fragments: vec![Fragment {
                 offset_bits: 8,
                 len_bits: 16,
                 ..Default::default()
             }],
         };
-        let schema = Schema::compile(&vec![field1, field2]).unwrap();
+        let schema = Schema::compile(&vec![field1, field2], None).unwrap();
         let data = vec![0x01, 0x00, 0x01, 0x04];
         let result = schema.parse(&data);
         assert_eq!(
@@ -161,7 +206,7 @@ mod tests {
                 offset_bits: 0,
             }),
             signed: false,
-            assemble: Assemble::ConcatMsb,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
             fragments: vec![Fragment {
                 offset_bits: 0,
                 len_bits: 8,
@@ -169,7 +214,7 @@ mod tests {
             }],
         };
 
-        let schema = Schema::compile(&vec![field]).unwrap();
+        let schema = Schema::compile(&vec![field], None).unwrap();
         let data = vec![0x01, 0x02, 0x03, 0x04];
         let result = schema.parse(&data);
         assert_eq!(
@@ -192,7 +237,7 @@ mod tests {
             name: "id".to_string(),
             kind: FieldKind::Scalar,
             signed: false,
-            assemble: Assemble::ConcatMsb,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
             fragments: vec![Fragment {
                 offset_bits: 0,
                 len_bits: 16,
@@ -204,7 +249,7 @@ mod tests {
             name: "temperature".to_string(),
             kind: FieldKind::Scalar,
             signed: false,
-            assemble: Assemble::ConcatMsb,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
             fragments: vec![Fragment {
                 offset_bits: 16,
                 len_bits: 8,
@@ -220,7 +265,7 @@ mod tests {
                 offset_bits: 24,
             }),
             signed: false,
-            assemble: Assemble::ConcatMsb,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
             fragments: vec![Fragment {
                 offset_bits: 0,
                 len_bits: 8,
@@ -228,7 +273,8 @@ mod tests {
             }],
         };
 
-        let schema = Schema::compile(&vec![id_field, temperature_field, values_field]).unwrap();
+        let schema =
+            Schema::compile(&vec![id_field, temperature_field, values_field], None).unwrap();
 
         let data = vec![0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08];
         let result = schema.parse(&data);
@@ -249,5 +295,148 @@ mod tests {
                 )
             ]))
         );
+    }
+
+    #[test]
+    fn test_serialize_single_scalar() {
+        let field = Field {
+            name: "a".to_string(),
+            kind: FieldKind::Scalar,
+            signed: false,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
+            fragments: vec![Fragment {
+                offset_bits: 0,
+                len_bits: 8,
+                ..Default::default()
+            }],
+        };
+
+        let schema = Schema::compile(&[field], None).unwrap();
+
+        let obj = HashMap::from([("a".to_string(), Value::U64(0xAB))]);
+
+        let bytes = schema.serialize(&obj).unwrap();
+        assert_eq!(bytes, vec![0xAB]);
+    }
+
+    #[test]
+    fn test_serialize_multiple_scalars_linear() {
+        let a = Field {
+            name: "a".to_string(),
+            kind: FieldKind::Scalar,
+            signed: false,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
+            fragments: vec![Fragment {
+                offset_bits: 0,
+                len_bits: 4,
+                ..Default::default()
+            }],
+        };
+
+        let b = Field {
+            name: "b".to_string(),
+            kind: FieldKind::Scalar,
+            signed: false,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
+            fragments: vec![Fragment {
+                offset_bits: 0,
+                len_bits: 4,
+                ..Default::default()
+            }],
+        };
+
+        let schema = Schema::compile(&[a, b], None).unwrap();
+
+        let obj = HashMap::from([
+            ("a".to_string(), Value::U64(0b1010)),
+            ("b".to_string(), Value::U64(0b0101)),
+        ]);
+
+        let bytes = schema.serialize(&obj).unwrap();
+        assert_eq!(bytes, vec![0b1010_0101]);
+    }
+
+    #[test]
+    fn test_serialize_non_sequential_fragments() {
+        let field = Field {
+            name: "x".to_string(),
+            kind: FieldKind::Scalar,
+            signed: false,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
+            fragments: vec![
+                Fragment {
+                    offset_bits: 4,
+                    len_bits: 2,
+                    ..Default::default()
+                },
+                Fragment {
+                    offset_bits: 0,
+                    len_bits: 2,
+                    ..Default::default()
+                },
+            ],
+        };
+
+        let schema = Schema::compile(&[field], None).unwrap();
+
+        // value = 0b1101
+        let obj = HashMap::from([("x".to_string(), Value::U64(0b1101))]);
+
+        // take bits [4..6] then [0..2] → 11 01
+        let bytes = schema.serialize(&obj).unwrap();
+        assert_eq!(bytes, vec![0b1101_0000]);
+    }
+
+    #[test]
+    fn test_serialize_array_dense() {
+        let field = Field {
+            name: "arr".to_string(),
+            kind: FieldKind::Array(ArraySpec {
+                count: 3,
+                stride_bits: 8,
+                offset_bits: 0, // irrelevant for serialize
+            }),
+            signed: false,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
+            fragments: vec![Fragment {
+                offset_bits: 0,
+                len_bits: 8,
+                ..Default::default()
+            }],
+        };
+
+        let schema = Schema::compile(&[field], None).unwrap();
+
+        let obj = HashMap::from([(
+            "arr".to_string(),
+            Value::Array(vec![Value::U64(1), Value::U64(2), Value::U64(3)]),
+        )]);
+
+        let bytes = schema.serialize(&obj).unwrap();
+        assert_eq!(bytes, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_serialize_parse_roundtrip_dense() {
+        let field = Field {
+            name: "x".to_string(),
+            kind: FieldKind::Scalar,
+            signed: false,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
+            fragments: vec![Fragment {
+                offset_bits: 0,
+                len_bits: 8,
+                ..Default::default()
+            }],
+        };
+
+        let schema = Schema::compile(&[field], None).unwrap();
+
+        let obj = HashMap::from([("x".to_string(), Value::U64(42))]);
+
+        let bytes = schema.serialize(&obj).unwrap();
+        let parsed = schema.parse(&bytes).unwrap();
+
+        assert_eq!(parsed.get("x"), Some(&Value::U64(42)));
     }
 }

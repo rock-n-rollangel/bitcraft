@@ -29,3 +29,11 @@ pub enum ReadError {
     /// Input data is shorter than the schema’s total bit length.
     PacketTooShort,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum WriteError {
+    /// Buffer is too short to write the value.
+    OutOfBounds,
+    InvalidValue,
+    MissingField(String),
+}
