@@ -10,6 +10,7 @@ use crate::{
     field::Field,
 };
 
+#[derive(Debug, Clone)]
 pub struct WriteConfig {
     pub bit_order: BitOrder,
 }
@@ -32,6 +33,7 @@ impl Default for WriteConfig {
 }
 
 /// A compiled schema: list of [CompiledField]s and total bit length. Use [Schema::compile] to build from [Field]s, then [Schema::parse] to parse bytes.
+#[derive(Debug, Clone)]
 pub struct Schema {
     total_bits: usize,
     /// Compiled fields in definition order.
