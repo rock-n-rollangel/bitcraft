@@ -6,11 +6,11 @@
 //!
 //! The same shapes are expected when you call `Schema::compile` with a JSON string.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// How individual fragments of bits are assembled into a numeric value.
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum AssembleDef {
     /// Concatenate fragments most‑significant‑bit first.
     ConcatMsb,
@@ -19,7 +19,7 @@ pub enum AssembleDef {
 }
 
 /// Bit order to use when reading a fragment.
-#[derive(Debug, Deserialize, Default, Clone)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub enum BitOrderDef {
     #[default]
     /// Most‑significant bit first within the fragment.
@@ -28,14 +28,14 @@ pub enum BitOrderDef {
     LsbFirst,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct WriteConfigDef {
     #[serde(default)]
     pub bit_order: BitOrderDef,
 }
 
 /// Top‑level schema definition consisting of a list of fields.
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SchemaDef {
     /// All fields that should be parsed from the payload.
     pub fields: Vec<FieldDef>,
@@ -44,7 +44,7 @@ pub struct SchemaDef {
 }
 
 /// Description of a single parsed field.
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct FieldDef {
     /// Human‑readable field name; becomes the key in the output map.
     pub name: String,
@@ -63,7 +63,7 @@ pub struct FieldDef {
 }
 
 /// Kind of field in the schema.
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(tag = "type")]
 pub enum FieldKindDef {
     /// Single scalar value.
@@ -80,7 +80,7 @@ pub enum FieldKindDef {
 }
 
 /// Bit‑level fragment that contributes to a field value.
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct FragmentDef {
     /// Offset of the first bit of this fragment from the start of the payload.
     pub offset_bits: usize,
@@ -93,7 +93,7 @@ pub struct FragmentDef {
 
 
 /// Base type of the value before any transform is applied.
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum BaseDef {
     /// Signed/unsigned integer value.
     Int,
@@ -106,7 +106,7 @@ pub enum BaseDef {
 }
 
 /// Text encoding to use when interpreting byte values as strings.
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum EncodingDef {
     /// UTF‑8 encoded string.
     Utf8,
@@ -115,7 +115,7 @@ pub enum EncodingDef {
 }
 
 /// Complete description of how to transform a parsed raw value.
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct TransformDef {
     /// Base representation of the raw value.
     pub base: BaseDef,
