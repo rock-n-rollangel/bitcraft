@@ -12,6 +12,20 @@ pub struct Fragment {
     pub bit_order: crate::assembly::BitOrder,
 }
 
+#[cfg(feature = "serde")]
+impl From<crate::serde::FragmentDef> for Fragment {
+    fn from(value: crate::serde::FragmentDef) -> Self {
+        Fragment {
+            offset_bits: value.offset_bits,
+            len_bits: value.len_bits,
+            bit_order: match value.bit_order {
+                Some(bit_order) => bit_order.into(),
+                None => Default::default(),
+            },
+        }
+    }
+}
+
 impl Fragment {
     pub fn new(offset_bits: usize, len_bits: usize) -> Self {
         Fragment {

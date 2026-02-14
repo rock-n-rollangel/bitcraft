@@ -8,7 +8,7 @@ description = "WASM bindings for the bitcraft binary schema and transform engine
 crate-type = ["cdylib"]
 
 [dependencies]
-bitcraft = { path = "../bitcraft" }
+bitcraft = { path = "../bitcraft", features = ["serde"] }
 bitcraft-transform = { path = "../bitcraft-transform" }
 serde = { version = "1.0.228", features = ["derive"] }
 serde-wasm-bindgen = "0.6.5"

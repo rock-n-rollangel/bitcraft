@@ -20,10 +20,7 @@ use bitcraft::{
 use bitcraft_transform::{Base, Encoding, Transform};
 use serde::Serialize;
 use wasm_bindgen::JsValue;
-use crate::{
-    schema_def::*,
-    transform_def::{BaseDef, EncodingDef, TransformDef},
-};
+use bitcraft::serde::*;
 
 /// Serializable representation of a parsed value that can be converted to `JsValue`.
 ///

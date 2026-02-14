@@ -1,13 +1,13 @@
-//! JSON‑deserializable schema description used by `bitcraft-wasm`.
+//! JSON‑deserializable schema description.
 //!
 //! These types describe the *shape* of the binary data to be parsed. They are
 //! intended to be constructed from JSON (for example a schema file shipped
 //! with your application) and then compiled into core `bitcraft` types.
 //!
-//! The same shapes are expected on the JavaScript side when you call
-//! [`WasmSchema::new`](crate::WasmSchema::new) with a JSON string.
+//! The same shapes are expected when you call `Schema::compile` with a JSON string.
 
 use serde::Deserialize;
+use std::collections::HashMap;
 
 /// How individual fragments of bits are assembled into a numeric value.
 #[derive(Debug, Deserialize)]
@@ -59,7 +59,7 @@ pub struct FieldDef {
 
     /// Optional post‑processing transform applied after parsing the raw value.
     #[serde(default)]
-    pub transform: Option<crate::transform_def::TransformDef>,
+    pub transform: Option<TransformDef>,
 }
 
 /// Kind of field in the schema.
@@ -89,4 +89,48 @@ pub struct FragmentDef {
     /// Optional bit order inside the fragment; defaults to MSB‑first.
     #[serde(default)]
     pub bit_order: Option<BitOrderDef>,
+}
+
+
+/// Base type of the value before any transform is applied.
+#[derive(Debug, Deserialize)]
+pub enum BaseDef {
+    /// Signed/unsigned integer value.
+    Int,
+    /// 32‑bit floating‑point value.
+    Float32,
+    /// 64‑bit floating‑point value.
+    Float64,
+    /// Raw bytes (often used together with [`EncodingDef`]).
+    Bytes,
+}
+
+/// Text encoding to use when interpreting byte values as strings.
+#[derive(Debug, Deserialize)]
+pub enum EncodingDef {
+    /// UTF‑8 encoded string.
+    Utf8,
+    /// ASCII encoded string.
+    Ascii,
+}
+
+/// Complete description of how to transform a parsed raw value.
+#[derive(Debug, Deserialize)]
+pub struct TransformDef {
+    /// Base representation of the raw value.
+    pub base: BaseDef,
+    /// Optional multiplicative scale applied to numeric values.
+    pub scale: Option<f64>,
+    /// Optional additive offset applied after scaling.
+    pub offset: Option<f64>,
+
+    /// Optional text encoding when interpreting bytes as strings.
+    pub encoding: Option<EncodingDef>,
+    /// Whether string values should stop at the first zero byte.
+    pub zero_terminated: Option<bool>,
+    /// Whether leading/trailing whitespace should be trimmed.
+    pub trim: Option<bool>,
+
+    /// Optional mapping from integer codes to human‑readable labels.
+    pub enum_map: Option<HashMap<i64, String>>,
 }

@@ -41,13 +41,11 @@
 //! which makes it easy to inspect failures from JavaScript.
 
 mod convert;
-mod schema_def;
-mod transform_def;
 
 use std::collections::HashMap;
 
 use bitcraft_transform::Value;
-use schema_def::SchemaDef;
+use bitcraft::serde::SchemaDef;
 use wasm_bindgen::prelude::*;
 
 /// Compiled schema that can be used from JavaScript to parse binary data.

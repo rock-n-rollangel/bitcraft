@@ -35,3 +35,6 @@ pub mod errors;
 pub mod field;
 pub mod fragment;
 pub mod schema;
+
+#[cfg(feature = "serde")]
+pub mod serde;

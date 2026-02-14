@@ -6,11 +6,31 @@ pub enum Assemble {
     Concat(BitOrder),
 }
 
+#[cfg(feature = "serde")]
+impl From<crate::serde::AssembleDef> for Assemble {
+    fn from(value: crate::serde::AssembleDef) -> Self {
+        match value {
+            crate::serde::AssembleDef::ConcatMsb => Assemble::Concat(BitOrder::MsbFirst),
+            crate::serde::AssembleDef::ConcatLsb => Assemble::Concat(BitOrder::LsbFirst),
+        }
+    }
+}
+
 /// Bit order when reading a single fragment from the byte stream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BitOrder {
     MsbFirst,
     LsbFirst,
+}
+
+#[cfg(feature = "serde")]
+impl From<crate::serde::BitOrderDef> for BitOrder {
+    fn from(value: crate::serde::BitOrderDef) -> Self {
+        match value {
+            crate::serde::BitOrderDef::MsbFirst => BitOrder::MsbFirst,
+            crate::serde::BitOrderDef::LsbFirst => BitOrder::LsbFirst,
+        }
+    }
 }
 
 impl Default for BitOrder {

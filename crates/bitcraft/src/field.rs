@@ -15,6 +15,19 @@ pub struct Field {
     pub fragments: Vec<crate::fragment::Fragment>,
 }
 
+#[cfg(feature = "serde")]
+impl From<crate::serde::FieldDef> for Field {
+    fn from(value: crate::serde::FieldDef) -> Self {
+        Field {
+            name: value.name,
+            kind: value.kind.into(),
+            signed: value.signed,
+            assemble: value.assemble.into(),
+            fragments: value.fragments.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
 /// Distinguishes scalar fields from fixed-length array fields.
 #[derive(Debug, Clone)]
 pub enum FieldKind {
@@ -22,6 +35,24 @@ pub enum FieldKind {
     Scalar,
     /// Repeated element with fixed count and stride.
     Array(ArraySpec),
+}
+
+#[cfg(feature = "serde")]
+impl From<crate::serde::FieldKindDef> for FieldKind {
+    fn from(value: crate::serde::FieldKindDef) -> Self {
+        match value {
+            crate::serde::FieldKindDef::Scalar => FieldKind::Scalar,
+            crate::serde::FieldKindDef::Array {
+                count,
+                stride_bits,
+                offset_bits,
+            } => FieldKind::Array(ArraySpec {
+                count,
+                stride_bits,
+                offset_bits,
+            }),
+        }
+    }
 }
 
 /// Parameters for an array field: count, stride, and start offset in bits.

@@ -14,6 +14,15 @@ pub struct WriteConfig {
     pub bit_order: BitOrder,
 }
 
+#[cfg(feature = "serde")]
+impl From<crate::serde::WriteConfigDef> for WriteConfig {
+    fn from(value: crate::serde::WriteConfigDef) -> Self {
+        WriteConfig {
+            bit_order: value.bit_order.into(),
+        }
+    }
+}
+
 impl Default for WriteConfig {
     fn default() -> Self {
         WriteConfig {
@@ -28,6 +37,17 @@ pub struct Schema {
     /// Compiled fields in definition order.
     pub fields: Vec<CompiledField>,
     pub write_config: Option<WriteConfig>,
+}
+
+#[cfg(feature = "serde")]
+impl TryFrom<crate::serde::SchemaDef> for Schema {
+    type Error = CompileError;
+
+    fn try_from(value: crate::serde::SchemaDef) -> Result<Self, Self::Error> {
+        let fields: Vec<Field> = value.fields.into_iter().map(Into::into).collect();
+        let write_config = value.write_config.map(Into::into);
+        return Self::compile(&fields, write_config);
+    }
 }
 
 impl Schema {
