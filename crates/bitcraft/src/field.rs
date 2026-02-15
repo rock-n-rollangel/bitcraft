@@ -2,6 +2,7 @@
 
 /// A single named field in a schema: either a scalar or an array of scalars.
 #[derive(Debug, Clone)]
+#[cfg(not(feature = "transform"))]
 pub struct Field {
     /// Name used in the parsed result map.
     pub name: String,
@@ -15,7 +16,23 @@ pub struct Field {
     pub fragments: Vec<crate::fragment::Fragment>,
 }
 
-#[cfg(feature = "serde")]
+#[derive(Debug, Clone)]
+#[cfg(feature = "transform")]
+pub struct Field {
+    /// Name used in the parsed result map.
+    pub name: String,
+    /// Whether this is a scalar or an array, and array parameters.
+    pub kind: FieldKind,
+    /// If true, the assembled value is interpreted as signed and sign-extended.
+    pub signed: bool,
+    /// How [crate::fragment::Fragment]s are concatenated (MSB-first or LSB-first).
+    pub assemble: crate::assembly::Assemble,
+    /// Bit ranges that make up this field (one or more, possibly non-contiguous).
+    pub fragments: Vec<crate::fragment::Fragment>,
+    pub transform: Option<crate::transform::Transform>,
+}
+
+#[cfg(all(feature = "serde", not(feature = "transform")))]
 impl From<crate::serde::FieldDef> for Field {
     fn from(value: crate::serde::FieldDef) -> Self {
         Field {
@@ -24,6 +41,22 @@ impl From<crate::serde::FieldDef> for Field {
             signed: value.signed,
             assemble: value.assemble.into(),
             fragments: value.fragments.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+#[cfg(all(feature = "serde", feature = "transform"))]
+impl From<crate::serde::FieldDef> for Field {
+    fn from(value: crate::serde::FieldDef) -> Self {
+        use crate::transform::Transform;
+
+        Field {
+            name: value.name,
+            kind: value.kind.into(),
+            signed: value.signed,
+            assemble: value.assemble.into(),
+            fragments: value.fragments.into_iter().map(Into::into).collect(),
+            transform: value.transform.map(|def| Transform::try_from(def).unwrap()),
         }
     }
 }

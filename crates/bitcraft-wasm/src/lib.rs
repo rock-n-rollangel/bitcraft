@@ -44,7 +44,6 @@ mod convert;
 
 use std::collections::HashMap;
 
-use bitcraft_transform::Value;
 use bitcraft::serde::SchemaDef;
 use wasm_bindgen::prelude::*;
 
@@ -64,8 +63,6 @@ use wasm_bindgen::prelude::*;
 pub struct WasmSchema {
     /// Compiled bit‑level schema describing how to read the payload.
     schema: bitcraft::schema::Schema,
-    /// Optional value transforms keyed by field name.
-    transforms: HashMap<String, bitcraft_transform::Transform>,
 }
 
 #[wasm_bindgen]
@@ -86,18 +83,8 @@ impl WasmSchema {
     #[wasm_bindgen(constructor)]
     pub fn new(schema_json: &str) -> Result<WasmSchema, JsValue> {
         let def: SchemaDef = serde_json::from_str(schema_json).map_err(convert::error_to_js)?;
-
-        let transforms = convert::schema_def_to_transforms(&def).map_err(convert::error_to_js)?;
-
-        let write_config =
-            convert::write_config_def_to_write_config(&def).map_err(convert::error_to_js)?;
-
-        let fields = convert::schema_def_to_fields(&def).map_err(convert::error_to_js)?;
-
-        let schema = bitcraft::schema::Schema::compile(&fields, write_config)
-            .map_err(convert::error_to_js)?;
-
-        Ok(WasmSchema { schema, transforms })
+        let schema = bitcraft::schema::Schema::try_from(def).map_err(convert::error_to_js)?;
+        Ok(WasmSchema { schema })
     }
 
     /// Parses a binary payload according to this compiled schema.
@@ -109,119 +96,26 @@ impl WasmSchema {
     ///
     /// On error a `JsValue` containing a debug string is returned.
     pub fn parse(&self, data: &[u8]) -> Result<JsValue, JsValue> {
-        let raw_map = self.schema.parse(data).map_err(convert::error_to_js)?;
-
-        let mut out = std::collections::BTreeMap::<String, Value>::new();
-        for (name, value) in raw_map {
-            let transformed_value = self.apply_transform(name.as_str(), value)?;
-            out.insert(name, transformed_value);
-        }
-
-        convert::map_to_js(out)
-    }
-
-    /// Applies a per‑field transform if configured, otherwise passes through the value.
-    ///
-    /// This is an internal helper and is not exported to JavaScript.
-    fn apply_transform(
-        &self,
-        name: &str,
-        value: bitcraft::assembly::Value,
-    ) -> Result<Value, JsValue> {
-        match self.transforms.get(name) {
-            Some(transform) => transform.apply(value).map_err(convert::error_to_js),
-            None => Ok(convert::value_to_transform_value(value)),
-        }
+        let result = self.schema.parse(data).map_err(convert::error_to_js)?;
+        let transformed = self
+            .schema
+            .apply_transforms(result)
+            .map_err(convert::error_to_js)?;
+        convert::map_to_js(transformed)
     }
 
     pub fn serialize(&self, obj: JsValue) -> Result<Vec<u8>, JsValue> {
-      // Convert JS object into a generic Rust structure
-      let raw: HashMap<String, serde_json::Value> =
-          serde_wasm_bindgen::from_value(obj)
-              .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        // Convert JS object into a generic Rust structure
+        let raw: HashMap<String, serde_json::Value> =
+            serde_wasm_bindgen::from_value(obj).map_err(|e| JsValue::from_str(&e.to_string()))?;
 
-      // Convert serde_json::Value -> bitcraft::Value
-      let mut map = HashMap::new();
+        // Convert serde_json::Value -> bitcraft::Value
+        let mut map = HashMap::new();
 
-      for (k, v) in raw {
-          map.insert(k, convert::convert_json_value(v)?);
-      }
-
-      self.schema
-          .serialize(&map)
-          .map_err(convert::error_to_js)
-  }
-}
-
-#[test]
-fn test_schema_def_to_fields() {
-    let json = r#"
-    {
-      "fields": [
-        {
-          "name": "id",
-          "kind": { "type": "Scalar" },
-          "signed": false,
-          "assemble": "ConcatMsb",
-          "fragments": [{ "offset_bits": 0, "len_bits": 16 }]
+        for (k, v) in raw {
+            map.insert(k, convert::convert_json_value(v)?);
         }
-      ],
-      "write_config": { "bit_order": "MsbFirst" }
+
+        self.schema.serialize(&map).map_err(convert::error_to_js)
     }
-    "#;
-
-    let def: SchemaDef = serde_json::from_str(json).unwrap();
-    let fields = convert::schema_def_to_fields(&def).unwrap();
-    let write_config = convert::write_config_def_to_write_config(&def).unwrap();
-
-    assert_eq!(
-        write_config.unwrap().bit_order,
-        bitcraft::assembly::BitOrder::MsbFirst
-    );
-    assert_eq!(fields.len(), 1);
-    assert_eq!(fields[0].name, "id");
-}
-
-#[test]
-fn test_schema_def_to_fields_array() {
-    let json = r#"
-    {
-      "fields": [
-        {
-          "name": "id",
-          "kind": { "type": "Scalar" },
-          "signed": false,
-          "assemble": "ConcatMsb",
-          "fragments": [{ "offset_bits": 0, "len_bits": 16 }],
-          "transform": { "base": "Int", "scale": 0.5, "offset": 100 }
-        },
-        {
-          "name": "values",
-          "kind": { "type": "Array", "count": 10, "stride_bits": 8, "offset_bits": 16 },
-          "signed": false,
-          "assemble": "ConcatMsb",
-          "fragments": [{ "offset_bits": 0, "len_bits": 8 }]
-        }
-      ]
-    }
-    "#;
-
-    let def: SchemaDef = serde_json::from_str(json).unwrap();
-    let transforms = convert::schema_def_to_transforms(&def).unwrap();
-    let fields = convert::schema_def_to_fields(&def).unwrap();
-    let write_config = convert::write_config_def_to_write_config(&def).unwrap();
-
-    assert_eq!(transforms.len(), 1);
-    assert_eq!(
-        transforms.get("id").unwrap().base,
-        bitcraft_transform::Base::Int
-    );
-    assert_eq!(transforms.get("id").unwrap().scale, Some(0.5));
-    assert_eq!(transforms.get("id").unwrap().offset, Some(100.0));
-
-    assert_eq!(fields.len(), 2);
-    assert_eq!(fields[0].name, "id");
-    assert_eq!(fields[1].name, "values");
-
-    assert!(write_config.is_none());
 }

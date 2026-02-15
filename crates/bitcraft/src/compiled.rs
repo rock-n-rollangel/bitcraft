@@ -248,7 +248,7 @@ impl TryFrom<&crate::fragment::Fragment> for CompiledFragment {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "transform")))]
 mod tests {
     use crate::{compiled::CompiledScalar, field::Field, fragment::Fragment};
 

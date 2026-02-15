@@ -2,6 +2,8 @@
 
 use std::collections::{BTreeMap, HashMap};
 
+#[cfg(feature = "transform")]
+use crate::transform::TransformError;
 use crate::{
     assembly::{ArrayCount, BitOrder, Value},
     bits,
@@ -34,11 +36,22 @@ impl Default for WriteConfig {
 
 /// A compiled schema: list of [CompiledField]s and total bit length. Use [Schema::compile] to build from [Field]s, then [Schema::parse] to parse bytes.
 #[derive(Debug, Clone)]
+#[cfg(not(feature = "transform"))]
 pub struct Schema {
     total_bits: usize,
     /// Compiled fields in definition order.
     pub fields: Vec<CompiledField>,
     pub write_config: Option<WriteConfig>,
+}
+
+#[derive(Debug, Clone)]
+#[cfg(feature = "transform")]
+pub struct Schema {
+    total_bits: usize,
+    /// Compiled fields in definition order.
+    pub fields: Vec<CompiledField>,
+    pub write_config: Option<WriteConfig>,
+    transforms: HashMap<String, crate::transform::Transform>,
 }
 
 #[cfg(feature = "serde")]
@@ -54,6 +67,7 @@ impl TryFrom<crate::serde::SchemaDef> for Schema {
 
 impl Schema {
     /// Compiles a slice of [Field]s into a schema. Fails if any field is invalid.
+    #[cfg(not(feature = "transform"))]
     pub fn compile(
         fields: &[Field],
         write_config: Option<WriteConfig>,
@@ -90,6 +104,77 @@ impl Schema {
             total_bits,
             write_config,
         })
+    }
+
+    #[cfg(feature = "transform")]
+    pub fn compile(
+        fields: &[Field],
+        write_config: Option<WriteConfig>,
+    ) -> Result<Self, CompileError> {
+        let mut compiled_fields: Vec<CompiledField> = Vec::with_capacity(fields.len());
+        let mut total_bits = 0;
+        let mut transforms = HashMap::<String, crate::transform::Transform>::new();
+
+        for field in fields {
+            let compiled_field: CompiledField = field.try_into()?;
+
+            match &compiled_field.kind {
+                CompiledFieldKind::Scalar(scalar) => {
+                    for frag in &scalar.fragments {
+                        let end = frag.offset_bits + frag.len_bits;
+                        total_bits = total_bits.max(end);
+                    }
+                }
+                CompiledFieldKind::Array(array) => {
+                    let ArrayCount::Fixed(count) = array.count;
+
+                    let end = array.offset_bits
+                        + array.element.total_bits
+                        + array.stride_bits * (count - 1);
+
+                    total_bits = total_bits.max(end);
+                }
+            }
+
+            if let Some(transform) = &field.transform {
+                transforms.insert(field.name.clone(), transform.clone());
+            }
+
+            compiled_fields.push(compiled_field);
+        }
+
+        Ok(Self {
+            fields: compiled_fields,
+            total_bits,
+            write_config,
+            transforms,
+        })
+    }
+
+    #[cfg(feature = "transform")]
+    pub fn apply_transforms(
+        &self,
+        obj: BTreeMap<String, Value>,
+    ) -> Result<BTreeMap<String, crate::transform::Value>, TransformError> {
+        let mut map: BTreeMap<String, crate::transform::Value> = BTreeMap::new();
+
+        for (name, value) in obj {
+            let transform = self.transforms.get(&name);
+            match transform {
+                Some(transform) => {
+                    let value = transform.apply(value)?;
+                    map.insert(name, value);
+                }
+                None => {
+                    map.insert(
+                        name.clone(),
+                        crate::transform::value_to_transform_value(value),
+                    );
+                }
+            }
+        }
+
+        Ok(map)
     }
 
     /// Parses `data` according to this schema. Returns a map of field names to [Value]s. Fails if `data` is too short.
@@ -142,7 +227,7 @@ impl Schema {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(feature = "transform")))]
 mod tests {
     use crate::{
         assembly::{Assemble, BitOrder},

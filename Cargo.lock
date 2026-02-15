@@ -47,18 +47,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "bitcraft-transform"
-version = "0.1.0"
-dependencies = [
- "bitcraft",
-]
-
-[[package]]
 name = "bitcraft-wasm"
 version = "0.1.0"
 dependencies = [
  "bitcraft",
- "bitcraft-transform",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",

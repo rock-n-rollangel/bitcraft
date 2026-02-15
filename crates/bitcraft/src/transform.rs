@@ -1,7 +1,3 @@
-//! # bitcraft-transform
-//!
-//! Transforms raw assembly values from the [bitcraft] crate into typed, decoded values.
-//!
 //! A [`Transform`] describes how to interpret and optionally modify values:
 //! - **Base type**: How to reinterpret raw bytes (integer, float32, float64, or byte array).
 //! - **Numeric modifiers**: Optional `scale` and `offset` applied as `value * scale + offset`.
@@ -15,8 +11,6 @@
 //! 2. Numeric modifiers (scale, offset)
 //! 3. Enum mapping
 //! 4. String decoding
-//!
-//! [bitcraft]: https://docs.rs/bitcraft
 
 use std::collections::HashMap;
 
@@ -53,7 +47,7 @@ pub enum Value {
 }
 
 /// Base interpretation for raw assembly values.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Base {
     /// Interpret as 64-bit signed or unsigned integer.
     Int,
@@ -72,7 +66,7 @@ impl Default for Base {
 }
 
 /// Character encoding for decoding byte arrays to strings.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Encoding {
     /// UTF-8. Any valid UTF-8 byte sequence is accepted.
     Utf8,
@@ -80,24 +74,25 @@ pub enum Encoding {
     Ascii,
 }
 
-/// Configuration for transforming raw [`bitcraft::assembly::Value`] into [`Value`]s.
+/// Configuration for transforming raw [`crate::assembly::Value`] into [`Value`]s.
 ///
 /// Use the builder-style setters (`set_scale`, `set_encoding`, etc.) to configure,
 /// then call [`apply`](Transform::apply) with a raw value.
-/// 
+///
 /// Applying scale or offset always produces a floating-point result.
 ///
 /// # Example
 ///
 /// ```
-/// use bitcraft_transform::{Transform, Base, Value};
+/// use crate_transform::{Transform, Base, Value};
 ///
 /// let mut transform = Transform::new(Base::Int);
 /// transform.set_scale(2.0).set_offset(1.0);
-/// let raw = bitcraft::assembly::Value::I64(10);
+/// let raw = crate::assembly::Value::I64(10);
 /// let result = transform.apply(raw).unwrap();
 /// assert_eq!(result, Value::Float64(21.0));
 /// ```
+#[derive(Debug, Clone)]
 pub struct Transform {
     /// How to interpret the raw value (int, float32, float64, or bytes).
     pub base: Base,
@@ -115,6 +110,32 @@ pub struct Transform {
 
     /// If set (only valid for `Base::Int`), map integer values to string labels.
     pub enum_map: Option<HashMap<i64, String>>,
+}
+
+#[cfg(feature = "serde")]
+impl TryFrom<crate::serde::TransformDef> for Transform {
+    type Error = crate::errors::CompileError;
+
+    fn try_from(value: crate::serde::TransformDef) -> Result<Self, Self::Error> {
+        Ok(Transform {
+            base: match value.base {
+                crate::serde::BaseDef::Int => Base::Int,
+                crate::serde::BaseDef::Float32 => Base::Float32,
+                crate::serde::BaseDef::Float64 => Base::Float64,
+                crate::serde::BaseDef::Bytes => Base::Bytes,
+            },
+            scale: value.scale,
+            offset: value.offset,
+            encoding: match value.encoding {
+                Some(crate::serde::EncodingDef::Utf8) => Some(Encoding::Utf8),
+                Some(crate::serde::EncodingDef::Ascii) => Some(Encoding::Ascii),
+                None => None,
+            },
+            zero_terminated: value.zero_terminated,
+            trim: value.trim,
+            enum_map: value.enum_map.clone(),
+        })
+    }
 }
 
 impl Default for Transform {
@@ -179,7 +200,7 @@ impl Transform {
 
 impl Transform {
     /// Applies the transform to a single scalar value (no array handling).
-    fn apply_scalar(&self, raw: bitcraft::assembly::Value) -> Result<Value, TransformError> {
+    fn apply_scalar(&self, raw: crate::assembly::Value) -> Result<Value, TransformError> {
         let mut v = reinterpret_base(&self.base, raw)?;
         v = apply_numeric_modifiers(v, self.scale, self.offset)?;
         v = apply_enum(v, &self.enum_map)?;
@@ -191,7 +212,7 @@ impl Transform {
     ///
     /// Validates the transform configuration first. For arrays, applies the transform
     /// to each element. For `Base::Bytes`, expects an array of byte-sized values.
-    pub fn apply(&self, raw: bitcraft::assembly::Value) -> Result<Value, TransformError> {
+    pub fn apply(&self, raw: crate::assembly::Value) -> Result<Value, TransformError> {
         self.validate()?;
 
         if self.base == Base::Bytes {
@@ -201,7 +222,7 @@ impl Transform {
         }
 
         match raw {
-            bitcraft::assembly::Value::Array(values) => {
+            crate::assembly::Value::Array(values) => {
                 let mut out = Vec::with_capacity(values.len());
 
                 for v in values {
@@ -242,24 +263,21 @@ impl Transform {
 
 /// Interprets a raw assembly value according to the given base type (int/float32/float64).
 /// Bytes base is not handled here; use `extract_bytes` for that.
-fn reinterpret_base(
-    base: &Base,
-    value: bitcraft::assembly::Value,
-) -> Result<Value, TransformError> {
+fn reinterpret_base(base: &Base, value: crate::assembly::Value) -> Result<Value, TransformError> {
     match (base, value) {
         // ---------- INT ----------
-        (Base::Int, bitcraft::assembly::Value::I64(v)) => Ok(Value::Int(v)),
+        (Base::Int, crate::assembly::Value::I64(v)) => Ok(Value::Int(v)),
 
-        (Base::Int, bitcraft::assembly::Value::U64(v)) => Ok(Value::Int(v as i64)),
+        (Base::Int, crate::assembly::Value::U64(v)) => Ok(Value::Int(v as i64)),
 
         // ---------- FLOAT32 ----------
-        (Base::Float32, bitcraft::assembly::Value::U64(v)) => {
+        (Base::Float32, crate::assembly::Value::U64(v)) => {
             let bits = v as u32;
             Ok(Value::Float32(f32::from_bits(bits)))
         }
 
         // ---------- FLOAT64 ----------
-        (Base::Float64, bitcraft::assembly::Value::U64(v)) => Ok(Value::Float64(f64::from_bits(v))),
+        (Base::Float64, crate::assembly::Value::U64(v)) => Ok(Value::Float64(f64::from_bits(v))),
 
         // ---------- BYTES ----------
         (Base::Bytes, _) => Err(TransformError::InvalidBase),
@@ -269,21 +287,21 @@ fn reinterpret_base(
 }
 
 /// Extracts a byte vector from an array of byte-sized U64/I64 values.
-fn extract_bytes(raw: bitcraft::assembly::Value) -> Result<Vec<u8>, TransformError> {
+fn extract_bytes(raw: crate::assembly::Value) -> Result<Vec<u8>, TransformError> {
     match raw {
-        bitcraft::assembly::Value::Array(values) => {
+        crate::assembly::Value::Array(values) => {
             let mut bytes = Vec::with_capacity(values.len());
 
             for v in values {
                 match v {
-                    bitcraft::assembly::Value::U64(x) => {
+                    crate::assembly::Value::U64(x) => {
                         if x > 255 {
                             return Err(TransformError::InvalidByteValue);
                         }
                         bytes.push(x as u8);
                     }
 
-                    bitcraft::assembly::Value::I64(x) => {
+                    crate::assembly::Value::I64(x) => {
                         if x < 0 || x > 255 {
                             return Err(TransformError::InvalidByteValue);
                         }
@@ -387,6 +405,20 @@ fn apply_enum(
     }
 }
 
+/// Converts a low‑level `crate::assembly::Value` into a `Value`.
+///
+/// This is used when no explicit transform is configured for a field but the
+/// value still needs to be presented through the `bitcraft-transform` layer.
+pub fn value_to_transform_value(v: crate::assembly::Value) -> Value {
+    match v {
+        crate::assembly::Value::U64(x) => Value::Int(x as i64),
+        crate::assembly::Value::I64(x) => Value::Int(x),
+        crate::assembly::Value::Array(xs) => {
+            Value::Array(xs.into_iter().map(value_to_transform_value).collect())
+        }
+    }
+}
+
 #[test]
 fn test_float32_from_bits() {
     let transform = Transform {
@@ -399,7 +431,7 @@ fn test_float32_from_bits() {
         trim: None,
     };
 
-    let raw = bitcraft::assembly::Value::U64(0x40490FDB);
+    let raw = crate::assembly::Value::U64(0x40490FDB);
     let result = transform.apply(raw).unwrap();
 
     assert_eq!(result, Value::Float32(3.2415927));
@@ -417,7 +449,7 @@ fn test_float64_from_bits() {
         trim: None,
     };
 
-    let raw = bitcraft::assembly::Value::U64(0x400921FB54442D18);
+    let raw = crate::assembly::Value::U64(0x400921FB54442D18);
     let result = transform.apply(raw).unwrap();
 
     assert_eq!(result, Value::Float64(3.241592653589793));
@@ -445,10 +477,8 @@ fn test_floats_failure() {
         trim: None,
     };
 
-    assert!(transform.apply(bitcraft::assembly::Value::I64(0)).is_err());
-    assert!(transform_64
-        .apply(bitcraft::assembly::Value::I64(0))
-        .is_err());
+    assert!(transform.apply(crate::assembly::Value::I64(0)).is_err());
+    assert!(transform_64.apply(crate::assembly::Value::I64(0)).is_err());
 }
 
 #[test]
@@ -463,25 +493,25 @@ fn test_int() {
         trim: None,
     };
     assert_eq!(
-        transform.apply(bitcraft::assembly::Value::I64(10)).unwrap(),
+        transform.apply(crate::assembly::Value::I64(10)).unwrap(),
         Value::Float64(21.0)
     );
 
     transform.scale = Some(1.0);
     transform.offset = Some(-10.0);
     assert_eq!(
-        transform.apply(bitcraft::assembly::Value::I64(10)).unwrap(),
+        transform.apply(crate::assembly::Value::I64(10)).unwrap(),
         Value::Float64(0.0)
     );
     assert_eq!(
-        transform.apply(bitcraft::assembly::Value::U64(10)).unwrap(),
+        transform.apply(crate::assembly::Value::U64(10)).unwrap(),
         Value::Float64(0.0)
     );
 
     transform.scale = Some(1.0);
     transform.offset = Some(0.0);
     assert_eq!(
-        transform.apply(bitcraft::assembly::Value::U64(0)).unwrap(),
+        transform.apply(crate::assembly::Value::U64(0)).unwrap(),
         Value::Float64(0.0)
     );
 }
@@ -498,10 +528,10 @@ fn test_bytes() {
         trim: None,
     };
 
-    let value = bitcraft::assembly::Value::Array(vec![
-        bitcraft::assembly::Value::I64(10),
-        bitcraft::assembly::Value::I64(20),
-        bitcraft::assembly::Value::I64(30),
+    let value = crate::assembly::Value::Array(vec![
+        crate::assembly::Value::I64(10),
+        crate::assembly::Value::I64(20),
+        crate::assembly::Value::I64(30),
     ]);
     let result = transform.apply(value).unwrap();
     assert_eq!(result, Value::Bytes(vec![10, 20, 30]));
@@ -519,10 +549,10 @@ fn test_bytes_failure() {
         trim: None,
     };
 
-    let value = bitcraft::assembly::Value::Array(vec![
-        bitcraft::assembly::Value::I64(10),
-        bitcraft::assembly::Value::I64(20),
-        bitcraft::assembly::Value::I64(300),
+    let value = crate::assembly::Value::Array(vec![
+        crate::assembly::Value::I64(10),
+        crate::assembly::Value::I64(20),
+        crate::assembly::Value::I64(300),
     ]);
 
     assert!(transform.apply(value).is_err());
@@ -540,13 +570,13 @@ fn test_string() {
         trim: None,
     };
 
-    let value = bitcraft::assembly::Value::Array(vec![
-        bitcraft::assembly::Value::I64(String::from("H").as_bytes()[0] as i64),
-        bitcraft::assembly::Value::I64(String::from("e").as_bytes()[0] as i64),
-        bitcraft::assembly::Value::I64(String::from("l").as_bytes()[0] as i64),
-        bitcraft::assembly::Value::I64(String::from("l").as_bytes()[0] as i64),
-        bitcraft::assembly::Value::I64(String::from("o").as_bytes()[0] as i64),
-        bitcraft::assembly::Value::I64(String::from("\n").as_bytes()[0] as i64),
+    let value = crate::assembly::Value::Array(vec![
+        crate::assembly::Value::I64(String::from("H").as_bytes()[0] as i64),
+        crate::assembly::Value::I64(String::from("e").as_bytes()[0] as i64),
+        crate::assembly::Value::I64(String::from("l").as_bytes()[0] as i64),
+        crate::assembly::Value::I64(String::from("l").as_bytes()[0] as i64),
+        crate::assembly::Value::I64(String::from("o").as_bytes()[0] as i64),
+        crate::assembly::Value::I64(String::from("\n").as_bytes()[0] as i64),
     ]);
 
     assert_eq!(
@@ -574,11 +604,11 @@ fn test_string_ascii_failure() {
         trim: None,
     };
 
-    let value = bitcraft::assembly::Value::Array(
+    let value = crate::assembly::Value::Array(
         String::from("Hello❤️\n")
             .as_bytes()
             .iter()
-            .map(|b| bitcraft::assembly::Value::I64(*b as i64))
+            .map(|b| crate::assembly::Value::I64(*b as i64))
             .collect(),
     );
 
@@ -601,11 +631,11 @@ fn test_enum() {
     };
 
     assert_eq!(
-        transform.apply(bitcraft::assembly::Value::I64(1)).unwrap(),
+        transform.apply(crate::assembly::Value::I64(1)).unwrap(),
         Value::String("one".to_string())
     );
     assert_eq!(
-        transform.apply(bitcraft::assembly::Value::I64(2)).unwrap(),
+        transform.apply(crate::assembly::Value::I64(2)).unwrap(),
         Value::String("two".to_string())
     );
 }
@@ -622,10 +652,10 @@ fn test_array() {
         trim: None,
     };
 
-    let value = bitcraft::assembly::Value::Array(vec![
-        bitcraft::assembly::Value::I64(10),
-        bitcraft::assembly::Value::I64(20),
-        bitcraft::assembly::Value::I64(30),
+    let value = crate::assembly::Value::Array(vec![
+        crate::assembly::Value::I64(10),
+        crate::assembly::Value::I64(20),
+        crate::assembly::Value::I64(30),
     ]);
     assert_eq!(
         transform.apply(value).unwrap(),
@@ -651,11 +681,11 @@ fn test_byte_array() {
 
     assert_eq!(
         transform
-            .apply(bitcraft::assembly::Value::Array(
+            .apply(crate::assembly::Value::Array(
                 String::from("Hello")
                     .as_bytes()
                     .iter()
-                    .map(|b| bitcraft::assembly::Value::I64(*b as i64))
+                    .map(|b| crate::assembly::Value::I64(*b as i64))
                     .collect(),
             ))
             .unwrap(),

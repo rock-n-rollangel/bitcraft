@@ -38,3 +38,6 @@ pub mod schema;
 
 #[cfg(feature = "serde")]
 pub mod serde;
+
+#[cfg(feature = "transform")]
+pub mod transform;

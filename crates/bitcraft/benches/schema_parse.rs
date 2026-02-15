@@ -6,21 +6,42 @@ use bitcraft::{
 };
 use criterion::{Criterion, criterion_group, criterion_main};
 
+fn gen_field(iter: usize) -> Field {
+    #[cfg(feature = "transform")]
+    let field = Field {
+        name: format!("f{}", iter),
+        kind: FieldKind::Scalar,
+        signed: false,
+        assemble: Assemble::Concat(BitOrder::MsbFirst),
+        fragments: vec![Fragment {
+            offset_bits: iter * 16,
+            len_bits: 16,
+            ..Default::default()
+        }],
+        transform: None,
+    };
+
+    #[cfg(not(feature = "transform"))]
+    let field = Field {
+        name: format!("f{}", iter),
+        kind: FieldKind::Scalar,
+        signed: false,
+        assemble: Assemble::Concat(BitOrder::MsbFirst),
+        fragments: vec![Fragment {
+            offset_bits: iter * 16,
+            len_bits: 16,
+            ..Default::default()
+        }],
+    };
+
+    field
+}
+
 fn gen_schema(field_count: usize) -> Schema {
     let mut fields = Vec::with_capacity(field_count);
 
     for i in 0..field_count {
-        fields.push(Field {
-            name: format!("f{}", i),
-            kind: FieldKind::Scalar,
-            signed: false,
-            assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![Fragment {
-                offset_bits: i * 16,
-                len_bits: 16,
-                ..Default::default()
-            }],
-        });
+        fields.push(gen_field(i));
     }
 
     Schema::compile(&fields, None).unwrap()

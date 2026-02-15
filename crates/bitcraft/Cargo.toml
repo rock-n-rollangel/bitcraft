@@ -6,6 +6,7 @@ edition = "2024"
 [features]
 default = []
 serde = ["dep:serde"]
+transform = []
 
 [dependencies]
 serde = { version = "1", optional = true, features = ["derive"] }
