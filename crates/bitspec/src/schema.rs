@@ -164,6 +164,12 @@ impl Schema {
             }
         }
 
+        if let Some(config) = &self.write_config {
+            if config.bit_order == crate::assembly::BitOrder::LsbFirst {
+                crate::bits::reverse_bits_in_bytes(&mut buf);
+            }
+        }
+
         Ok(buf)
     }
 }
@@ -467,6 +473,27 @@ mod tests {
         let bytes = schema.serialize(&obj).unwrap();
         let parsed = schema.parse(&bytes).unwrap();
         assert_eq!(parsed.get("x"), Some(&crate::value::Value::U64(0b1011)));
+    }
+
+    #[test]
+    fn test_serialize_honors_lsb_first_write_config() {
+        let field = Field {
+            name: "x".to_string(),
+            kind: FieldKind::Scalar,
+            signed: false,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
+            fragments: vec![Fragment::new(0, 8)],
+            transform: None,
+        };
+        let schema = Schema::compile(
+            &[field],
+            Some(WriteConfig { bit_order: BitOrder::LsbFirst }),
+        )
+        .unwrap();
+        let obj = BTreeMap::from([("x".to_string(), crate::value::Value::U64(0b1010_0011))]);
+        let bytes = schema.serialize(&obj).unwrap();
+        // MSB-first write produces 0b1010_0011. Reversing bits within byte → 0b1100_0101.
+        assert_eq!(bytes, vec![0b1100_0101]);
     }
 
     #[test]

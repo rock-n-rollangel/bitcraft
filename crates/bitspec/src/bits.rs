@@ -93,6 +93,13 @@ pub fn reverse_bits_n(mut x: u64, n: usize) -> u64 {
     r
 }
 
+/// Reverses the bit order within each byte of `data`. MSB becomes LSB and vice-versa.
+pub fn reverse_bits_in_bytes(data: &mut [u8]) {
+    for byte in data.iter_mut() {
+        *byte = byte.reverse_bits();
+    }
+}
+
 /// Converts a slice of bits to a byte vector.
 pub fn bits_to_bytes(bits: &[u8], bit_order: BitOrder) -> Vec<u8> {
     let n_bytes = (bits.len() + 7) / 8;
