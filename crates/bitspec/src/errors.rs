@@ -70,7 +70,12 @@ pub enum WriteError {
     /// Required field missing from the input object.
     MissingField(String),
     /// The provided value variant (e.g. F32/F64/Bytes/String) is not supported for serialization.
-    UnsupportedValue { field: String, variant: &'static str },
+    UnsupportedValue {
+        /// Name of the field that received the unsupported value.
+        field: String,
+        /// Name of the [`crate::value::Value`] variant that was rejected.
+        variant: &'static str,
+    },
 }
 
 impl fmt::Display for WriteError {

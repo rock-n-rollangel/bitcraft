@@ -1,3 +1,4 @@
+#![warn(missing_docs)]
 //! WASM bindings for the `bitspec` binary schema engine.
 //!
 //! This crate exposes a compact API to JavaScript for parsing binary
@@ -93,7 +94,7 @@ impl WasmSchema {
     /// - `data` is the raw byte slice (for example a `Uint8Array` passed from JS).
     /// - The return value is a JavaScript object (`JsValue`) where keys are
     ///   field names and values have been converted through any configured
-    ///   transforms (see [`schema_def_to_transforms`](crate::convert::schema_def_to_transforms)).
+    ///   transforms (see [`bitspec::schema::Schema::apply_transforms`]).
     ///
     /// On error a `JsValue` containing a debug string is returned.
     pub fn parse(&self, data: &[u8]) -> Result<JsValue, JsValue> {
@@ -108,6 +109,10 @@ impl WasmSchema {
         convert::map_to_js(transformed)
     }
 
+    /// Serializes a JavaScript object into bytes according to this schema.
+    ///
+    /// `obj` is a JS object whose keys match field names and whose values are
+    /// compatible with [`bitspec::value::Value`].
     pub fn serialize(&self, obj: JsValue) -> Result<Vec<u8>, JsValue> {
         let map: std::collections::BTreeMap<String, bitspec::value::Value> =
             serde_wasm_bindgen::from_value(obj)

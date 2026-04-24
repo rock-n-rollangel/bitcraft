@@ -28,8 +28,10 @@ pub enum BitOrderDef {
     LsbFirst,
 }
 
+/// JSON-friendly form of [`crate::schema::WriteConfig`].
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct WriteConfigDef {
+    /// Bit order applied to each output byte when serializing.
     #[serde(default)]
     pub bit_order: BitOrderDef,
 }
@@ -39,6 +41,7 @@ pub struct WriteConfigDef {
 pub struct SchemaDef {
     /// All fields that should be parsed from the payload.
     pub fields: Vec<FieldDef>,
+    /// Optional write configuration controlling serialization behavior.
     #[serde(default)]
     pub write_config: Option<WriteConfigDef>,
 }

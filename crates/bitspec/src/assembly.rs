@@ -3,6 +3,7 @@
 /// How multiple [crate::fragment::Fragment]s are concatenated to form a single value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Assemble {
+    /// Concatenate fragment bits in the given order to form the value.
     Concat(BitOrder),
 }
 
@@ -19,7 +20,9 @@ impl From<crate::serde::AssembleDef> for Assemble {
 /// Bit order when reading a single fragment from the byte stream.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BitOrder {
+    /// Most significant bit first within the byte/fragment.
     MsbFirst,
+    /// Least significant bit first within the byte/fragment.
     LsbFirst,
 }
 
@@ -42,5 +45,6 @@ impl Default for BitOrder {
 /// Number of elements in an array field.
 #[derive(Debug, Clone)]
 pub enum ArrayCount {
+    /// Array has a fixed, known-at-compile-time number of elements.
     Fixed(usize),
 }

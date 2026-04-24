@@ -11,14 +11,18 @@ use crate::{
 /// Compiled field: either a scalar or an array.
 #[derive(Debug, Clone)]
 pub enum CompiledFieldKind {
+    /// A single value assembled from one or more fragments.
     Scalar(CompiledScalar),
+    /// A repeated sequence of elements with configurable stride.
     Array(CompiledArray),
 }
 
 /// A field after compilation: name and either scalar or array layout.
 #[derive(Debug, Clone)]
 pub struct CompiledField {
+    /// Field name used as the key in parsed output maps.
     pub name: String,
+    /// Scalar or array layout for this field.
     pub kind: CompiledFieldKind,
 }
 
@@ -58,6 +62,7 @@ impl TryFrom<&crate::field::Field> for CompiledField {
 /// Compiled array: element layout, count, stride, and start offset.
 #[derive(Debug, Clone)]
 pub struct CompiledArray {
+    /// Compiled layout of a single array element.
     pub element: CompiledScalar,
     /// Number of elements.
     pub count: ArrayCount,
@@ -88,6 +93,7 @@ impl CompiledArray {
 }
 
 impl CompiledArray {
+    /// Writes the array `value` into `buf`, placing each element at its strided bit offset.
     pub fn disassemble_at(
         &self,
         value: &Value,
@@ -115,6 +121,7 @@ impl CompiledArray {
 /// Compiled scalar: total size, signedness, and list of fragments with shifts.
 #[derive(Debug, Clone)]
 pub struct CompiledScalar {
+    /// Whether the assembled value should be sign-extended to an `i64`.
     pub signed: bool,
     /// Total bit width (sum of fragment lengths, 1–64).
     pub total_bits: usize,
@@ -260,8 +267,11 @@ fn value_variant_name(v: &Value) -> &'static str {
 /// A fragment with precomputed shift for merging into the final scalar value.
 #[derive(Debug, Clone)]
 pub struct CompiledFragment {
+    /// Bit offset where this fragment starts (relative to the field/element base).
     pub offset_bits: usize,
+    /// Number of bits in this fragment.
     pub len_bits: usize,
+    /// Bit order used when reading this fragment.
     pub bit_order: crate::assembly::BitOrder,
     /// Shift to apply when OR-ing into the accumulator.
     pub shift: usize,

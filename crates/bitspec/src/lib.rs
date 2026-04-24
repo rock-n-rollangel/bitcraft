@@ -1,3 +1,4 @@
+#![deny(missing_docs)]
 //! # bitspec
 //!
 //! A library for bit-level parsing of binary data using declarative schemas.

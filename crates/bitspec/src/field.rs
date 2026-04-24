@@ -1,4 +1,4 @@
-//! Definition of logical fields used to build a [crate::Schema].
+//! Definition of logical fields used to build a [crate::schema::Schema].
 
 /// A single named field in a schema: either a scalar or an array of scalars.
 #[derive(Debug, Clone)]

@@ -9,6 +9,7 @@ pub struct Fragment {
     pub offset_bits: usize,
     /// Number of bits in this fragment.
     pub len_bits: usize,
+    /// Bit order used when reading this fragment.
     pub bit_order: crate::assembly::BitOrder,
 }
 
@@ -27,6 +28,7 @@ impl From<crate::serde::FragmentDef> for Fragment {
 }
 
 impl Fragment {
+    /// Creates a fragment at `offset_bits` with `len_bits` bits, using the default bit order.
     pub fn new(offset_bits: usize, len_bits: usize) -> Self {
         Fragment {
             offset_bits,
@@ -35,6 +37,7 @@ impl Fragment {
         }
     }
 
+    /// Creates a fragment at `offset_bits` with `len_bits` bits and an explicit bit order.
     pub fn new_with_bit_order(
         offset_bits: usize,
         len_bits: usize,

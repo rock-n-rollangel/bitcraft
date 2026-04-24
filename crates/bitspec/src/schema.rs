@@ -10,8 +10,10 @@ use crate::{
     value::Value,
 };
 
+/// Configuration applied when serializing a schema back to bytes.
 #[derive(Debug, Clone)]
 pub struct WriteConfig {
+    /// Bit order applied to each byte of the output buffer after writing.
     pub bit_order: BitOrder,
 }
 
@@ -100,6 +102,8 @@ impl Schema {
         })
     }
 
+    /// Applies each field's [`crate::transform::Transform`] to the values in `obj`,
+    /// returning a new map with transformed values.
     #[cfg(feature = "transform")]
     pub fn apply_transforms(
         &self,
@@ -138,6 +142,7 @@ impl Schema {
         Ok(map)
     }
 
+    /// Serializes `obj` into bytes according to this schema, respecting [`WriteConfig`].
     pub fn serialize(
         &self,
         obj: &std::collections::BTreeMap<String, crate::value::Value>,
