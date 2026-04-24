@@ -1,4 +1,21 @@
 //! Definition of logical fields used to build a [crate::schema::Schema].
+//!
+//! ## Example
+//!
+//! ```
+//! use bitspec::field::{Field, FieldKind};
+//! use bitspec::fragment::Fragment;
+//! use bitspec::assembly::{Assemble, BitOrder};
+//!
+//! let _field = Field {
+//!     name: "temperature".into(),
+//!     kind: FieldKind::Scalar,
+//!     signed: true,
+//!     assemble: Assemble::Concat(BitOrder::MsbFirst),
+//!     fragments: vec![Fragment::new(0, 16)],
+//!     transform: None,
+//! };
+//! ```
 
 /// A single named field in a schema: either a scalar or an array of scalars.
 #[derive(Debug, Clone)]

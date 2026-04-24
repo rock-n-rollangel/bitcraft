@@ -87,16 +87,17 @@ pub enum Encoding {
 ///
 /// Applying scale or offset always produces a floating-point result.
 ///
-/// # Example
+/// ## Example
 ///
 /// ```
-/// use crate_transform::{Transform, Base, Value};
+/// use bitspec::transform::{Transform, Base};
+/// use bitspec::value::Value;
 ///
-/// let mut transform = Transform::new(Base::Int);
-/// transform.set_scale(2.0).set_offset(1.0);
-/// let raw = crate::value::Value::I64(10);
-/// let result = transform.apply(raw).unwrap();
-/// assert_eq!(result, Value::Float64(21.0));
+/// let mut t = Transform::new(Base::Int);
+/// t.set_scale(2.0).set_offset(1.0);
+/// let raw = Value::I64(10);
+/// let out = t.apply(raw).unwrap();
+/// assert_eq!(out, Value::F64(21.0));
 /// ```
 #[derive(Debug, Clone)]
 pub struct Transform {

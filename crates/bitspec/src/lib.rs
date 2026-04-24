@@ -1,19 +1,19 @@
 #![deny(missing_docs)]
 //! # bitspec
 //!
-//! A library for bit-level parsing of binary data using declarative schemas.
+//! A library for bit-level parsing and serialization of binary data using declarative schemas.
 //!
 //! Define fields as bit ranges (possibly non-contiguous), specify signedness and
-//! bit order, then parse byte slices into structured values. Supports scalar
-//! fields and fixed-length arrays with configurable stride.
+//! bit order, then parse byte slices into structured values or serialize back.
 //!
 //! ## Example
 //!
 //! ```
-//! use bitspec::schema::{Schema, WriteConfig};
+//! use bitspec::schema::Schema;
 //! use bitspec::field::{Field, FieldKind};
 //! use bitspec::fragment::Fragment;
 //! use bitspec::assembly::{Assemble, BitOrder};
+//! use bitspec::value::Value;
 //!
 //! let fields = vec![
 //!     Field {
@@ -25,9 +25,9 @@
 //!         transform: None,
 //!     },
 //! ];
-//! let schema = Schema::compile(&fields, Some(WriteConfig::default())).unwrap();
+//! let schema = Schema::compile(&fields, None).unwrap();
 //! let parsed = schema.parse(&[0x42]).unwrap();
-//! assert_eq!(parsed.get("id"), Some(&bitspec::value::Value::U64(0x42)));
+//! assert_eq!(parsed.get("id"), Some(&Value::U64(0x42)));
 //! ```
 
 pub mod assembly;

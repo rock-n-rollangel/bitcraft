@@ -8,6 +8,26 @@
 //! The serde representation is externally tagged: `{"U64": 42}`, `{"I64": -1}`,
 //! `{"F32": 1.5}`, `{"F64": 3.14}`, `{"Bytes": [1, 2, 3]}`, `{"String": "x"}`,
 //! `{"Array": [ ... ]}`. This shape is what the TypeScript wrapper produces.
+//!
+//! ## Example
+//!
+//! ```
+//! use bitspec::value::Value;
+//!
+//! fn describe(v: &Value) -> &'static str {
+//!     match v {
+//!         Value::U64(_) => "unsigned int",
+//!         Value::I64(_) => "signed int",
+//!         Value::F32(_) | Value::F64(_) => "float",
+//!         Value::Bytes(_) => "bytes",
+//!         Value::String(_) => "string",
+//!         Value::Array(_) => "array",
+//!     }
+//! }
+//!
+//! assert_eq!(describe(&Value::U64(42)), "unsigned int");
+//! assert_eq!(describe(&Value::String("x".into())), "string");
+//! ```
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};

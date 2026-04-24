@@ -1,4 +1,36 @@
-//! Schema: compiled set of fields used to parse byte slices into named values.
+//! Schema: compiled set of fields used to parse byte slices into named values,
+//! and to write values back into byte sequences.
+//!
+//! ## Example
+//!
+//! ```
+//! use bitspec::schema::Schema;
+//! use bitspec::field::{Field, FieldKind};
+//! use bitspec::fragment::Fragment;
+//! use bitspec::assembly::{Assemble, BitOrder};
+//! use bitspec::value::Value;
+//! use std::collections::BTreeMap;
+//!
+//! let fields = vec![
+//!     Field { name: "a".into(), kind: FieldKind::Scalar, signed: false,
+//!             assemble: Assemble::Concat(BitOrder::MsbFirst),
+//!             fragments: vec![Fragment::new(0, 4)], transform: None },
+//!     Field { name: "b".into(), kind: FieldKind::Scalar, signed: false,
+//!             assemble: Assemble::Concat(BitOrder::MsbFirst),
+//!             fragments: vec![Fragment::new(4, 4)], transform: None },
+//! ];
+//! let schema = Schema::compile(&fields, None).unwrap();
+//!
+//! let obj = BTreeMap::from([
+//!     ("a".to_string(), Value::U64(0b1010)),
+//!     ("b".to_string(), Value::U64(0b0101)),
+//! ]);
+//! let bytes = schema.serialize(&obj).unwrap();
+//! assert_eq!(bytes, vec![0b1010_0101]);
+//!
+//! let parsed = schema.parse(&bytes).unwrap();
+//! assert_eq!(parsed.get("a"), Some(&Value::U64(0b1010)));
+//! ```
 
 use std::collections::BTreeMap;
 
