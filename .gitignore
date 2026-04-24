@@ -1,1 +1,6 @@
 /target
+
+# npm
+packages/**/node_modules/
+packages/**/dist/
+packages/**/wasm/
