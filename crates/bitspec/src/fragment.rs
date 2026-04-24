@@ -47,13 +47,3 @@ impl Fragment {
         }
     }
 }
-
-impl Default for Fragment {
-    fn default() -> Self {
-        Fragment {
-            offset_bits: 0,
-            len_bits: 0,
-            bit_order: Default::default(),
-        }
-    }
-}

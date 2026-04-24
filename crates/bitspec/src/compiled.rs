@@ -268,11 +268,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![Fragment {
-                offset_bits: 0,
-                len_bits: 2,
-                ..Default::default()
-            }],
+            fragments: vec![Fragment::new(0, 2)],
             transform: None,
         };
 
@@ -281,11 +277,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![Fragment {
-                offset_bits: 2,
-                len_bits: 11,
-                ..Default::default()
-            }],
+            fragments: vec![Fragment::new(2, 11)],
             transform: None,
         };
 
@@ -294,11 +286,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![Fragment {
-                offset_bits: 13,
-                len_bits: 3,
-                ..Default::default()
-            }],
+            fragments: vec![Fragment::new(13, 3)],
             transform: None,
         };
 
@@ -324,18 +312,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![
-                Fragment {
-                    offset_bits: 0,
-                    len_bits: 8,
-                    ..Default::default()
-                },
-                Fragment {
-                    offset_bits: 16,
-                    len_bits: 8,
-                    ..Default::default()
-                },
-            ],
+            fragments: vec![Fragment::new(0, 8), Fragment::new(16, 8)],
             transform: None,
         };
 
@@ -344,18 +321,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![
-                Fragment {
-                    offset_bits: 8,
-                    len_bits: 8,
-                    ..Default::default()
-                },
-                Fragment {
-                    offset_bits: 24,
-                    len_bits: 8,
-                    ..Default::default()
-                },
-            ],
+            fragments: vec![Fragment::new(8, 8), Fragment::new(24, 8)],
             transform: None,
         };
 
@@ -378,18 +344,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::LsbFirst),
-            fragments: vec![
-                Fragment {
-                    offset_bits: 4,
-                    len_bits: 4,
-                    ..Default::default()
-                },
-                Fragment {
-                    offset_bits: 12,
-                    len_bits: 4,
-                    ..Default::default()
-                },
-            ],
+            fragments: vec![Fragment::new(4, 4), Fragment::new(12, 4)],
             transform: None,
         };
 
@@ -405,18 +360,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![
-                Fragment {
-                    offset_bits: 0,
-                    len_bits: 3,
-                    ..Default::default()
-                },
-                Fragment {
-                    offset_bits: 5,
-                    len_bits: 5,
-                    ..Default::default()
-                },
-            ],
+            fragments: vec![Fragment::new(0, 3), Fragment::new(5, 5)],
             transform: None,
         };
 
@@ -434,18 +378,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::LsbFirst),
-            fragments: vec![
-                Fragment {
-                    offset_bits: 0,
-                    len_bits: 3,
-                    ..Default::default()
-                },
-                Fragment {
-                    offset_bits: 5,
-                    len_bits: 5,
-                    ..Default::default()
-                },
-            ],
+            fragments: vec![Fragment::new(0, 3), Fragment::new(5, 5)],
             transform: None,
         };
 

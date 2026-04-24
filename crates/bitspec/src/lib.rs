@@ -20,7 +20,7 @@
 //!         kind: FieldKind::Scalar,
 //!         signed: false,
 //!         assemble: Assemble::Concat(BitOrder::MsbFirst),
-//!         fragments: vec![Fragment { offset_bits: 0, len_bits: 8, ..Default::default() }],
+//!         fragments: vec![Fragment::new(0, 8)],
 //!         transform: None,
 //!     },
 //! ];

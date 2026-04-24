@@ -192,11 +192,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![Fragment {
-                offset_bits: 0,
-                len_bits: 1,
-                ..Default::default()
-            }],
+            fragments: vec![Fragment::new(0, 1)],
             transform: None,
         };
         let schema = Schema::compile(&vec![field], None).unwrap();
@@ -215,11 +211,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![Fragment {
-                offset_bits: 0,
-                len_bits: 8,
-                ..Default::default()
-            }],
+            fragments: vec![Fragment::new(0, 8)],
             transform: None,
         };
         let field2 = Field {
@@ -227,11 +219,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![Fragment {
-                offset_bits: 8,
-                len_bits: 16,
-                ..Default::default()
-            }],
+            fragments: vec![Fragment::new(8, 16)],
             transform: None,
         };
         let schema = Schema::compile(&vec![field1, field2], None).unwrap();
@@ -257,11 +245,7 @@ mod tests {
             }),
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![Fragment {
-                offset_bits: 0,
-                len_bits: 8,
-                ..Default::default()
-            }],
+            fragments: vec![Fragment::new(0, 8)],
             transform: None,
         };
 
@@ -289,11 +273,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![Fragment {
-                offset_bits: 0,
-                len_bits: 16,
-                ..Default::default()
-            }],
+            fragments: vec![Fragment::new(0, 16)],
             transform: None,
         };
 
@@ -302,11 +282,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![Fragment {
-                offset_bits: 16,
-                len_bits: 8,
-                ..Default::default()
-            }],
+            fragments: vec![Fragment::new(16, 8)],
             transform: None,
         };
 
@@ -319,11 +295,7 @@ mod tests {
             }),
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![Fragment {
-                offset_bits: 0,
-                len_bits: 8,
-                ..Default::default()
-            }],
+            fragments: vec![Fragment::new(0, 8)],
             transform: None,
         };
 
@@ -358,11 +330,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![Fragment {
-                offset_bits: 0,
-                len_bits: 8,
-                ..Default::default()
-            }],
+            fragments: vec![Fragment::new(0, 8)],
             transform: None,
         };
 
@@ -381,11 +349,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![Fragment {
-                offset_bits: 0,
-                len_bits: 4,
-                ..Default::default()
-            }],
+            fragments: vec![Fragment::new(0, 4)],
             transform: None,
         };
 
@@ -394,11 +358,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![Fragment {
-                offset_bits: 0,
-                len_bits: 4,
-                ..Default::default()
-            }],
+            fragments: vec![Fragment::new(0, 4)],
             transform: None,
         };
 
@@ -420,18 +380,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![
-                Fragment {
-                    offset_bits: 4,
-                    len_bits: 2,
-                    ..Default::default()
-                },
-                Fragment {
-                    offset_bits: 0,
-                    len_bits: 2,
-                    ..Default::default()
-                },
-            ],
+            fragments: vec![Fragment::new(4, 2), Fragment::new(0, 2)],
             transform: None,
         };
 
@@ -456,11 +405,7 @@ mod tests {
             }),
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![Fragment {
-                offset_bits: 0,
-                len_bits: 8,
-                ..Default::default()
-            }],
+            fragments: vec![Fragment::new(0, 8)],
             transform: None,
         };
 
@@ -482,11 +427,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![Fragment {
-                offset_bits: 0,
-                len_bits: 8,
-                ..Default::default()
-            }],
+            fragments: vec![Fragment::new(0, 8)],
             transform: None,
         };
 

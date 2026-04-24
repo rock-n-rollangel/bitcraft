@@ -12,11 +12,7 @@ fn gen_field(iter: usize) -> Field {
         kind: FieldKind::Scalar,
         signed: false,
         assemble: Assemble::Concat(BitOrder::MsbFirst),
-        fragments: vec![Fragment {
-            offset_bits: iter * 16,
-            len_bits: 16,
-            ..Default::default()
-        }],
+        fragments: vec![Fragment::new(iter * 16, 16)],
         transform: None,
     }
 }
