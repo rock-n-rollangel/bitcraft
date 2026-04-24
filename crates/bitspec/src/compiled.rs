@@ -87,22 +87,28 @@ impl CompiledArray {
     }
 }
 
-impl<'a> CompiledArray {
-    pub fn disassemble(
+impl CompiledArray {
+    pub fn disassemble_at(
         &self,
-        value: &'a Value,
-        buf: &'a mut Vec<u8>,
-    ) -> Result<&'a Vec<u8>, WriteError> {
+        value: &Value,
+        buf: &mut [u8],
+    ) -> Result<(), WriteError> {
         match value {
             Value::Array(values) => {
-                for value in values {
-                    self.element.disassemble(value, buf)?;
+                let count = match self.count {
+                    ArrayCount::Fixed(c) => c,
+                };
+                if values.len() != count {
+                    return Err(WriteError::InvalidValue);
                 }
+                for (i, v) in values.iter().enumerate() {
+                    let elem_offset = self.offset_bits + i * self.stride_bits;
+                    self.element.disassemble_at(v, buf, elem_offset)?;
+                }
+                Ok(())
             }
-            _ => return Err(WriteError::InvalidValue),
+            _ => Err(WriteError::InvalidValue),
         }
-
-        Ok(buf)
     }
 }
 
@@ -193,36 +199,61 @@ impl CompiledScalar {
     }
 }
 
-impl<'a> CompiledScalar {
-    pub fn disassemble(
+impl CompiledScalar {
+    /// Writes this scalar into `buf` at bit offset `base_offset`, using each
+    /// fragment's `offset_bits` (relative to `base_offset`). Respects fragment
+    /// bit order.
+    pub fn disassemble_at(
         &self,
-        value: &'a Value,
-        buf: &'a mut Vec<u8>,
-    ) -> Result<&'a Vec<u8>, WriteError> {
+        value: &Value,
+        buf: &mut [u8],
+        base_offset: usize,
+    ) -> Result<(), WriteError> {
         let value = match value {
             Value::I64(v) => *v as u64,
             Value::U64(v) => *v,
-            Value::Array(_)
-            | Value::F32(_)
-            | Value::F64(_)
-            | Value::Bytes(_)
-            | Value::String(_) => return Err(WriteError::InvalidValue),
+            Value::Array(_) => return Err(WriteError::InvalidValue),
+            Value::F32(_) | Value::F64(_) | Value::Bytes(_) | Value::String(_) => {
+                return Err(WriteError::UnsupportedValue {
+                    field: String::new(),
+                    variant: value_variant_name(value),
+                });
+            }
         };
 
         for fragment in &self.fragments {
             let mut part = value >> fragment.shift;
+            let mask = if fragment.len_bits == 64 {
+                u64::MAX
+            } else {
+                (1u64 << fragment.len_bits) - 1
+            };
+            part &= mask;
 
             if fragment.bit_order == BitOrder::LsbFirst {
                 part = reverse_bits_n(part, fragment.len_bits);
             }
 
-            for i in 0..fragment.len_bits {
-                let bit = (part >> (fragment.len_bits - 1 - i)) & 1;
-                buf.push(bit as u8);
-            }
+            crate::bits::write_bits_at(
+                buf,
+                base_offset + fragment.offset_bits,
+                fragment.len_bits,
+                part,
+            )?;
         }
+        Ok(())
+    }
+}
 
-        Ok(buf)
+fn value_variant_name(v: &Value) -> &'static str {
+    match v {
+        Value::U64(_) => "U64",
+        Value::I64(_) => "I64",
+        Value::F32(_) => "F32",
+        Value::F64(_) => "F64",
+        Value::Bytes(_) => "Bytes",
+        Value::String(_) => "String",
+        Value::Array(_) => "Array",
     }
 }
 

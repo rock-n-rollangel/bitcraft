@@ -36,4 +36,6 @@ pub enum WriteError {
     OutOfBounds,
     InvalidValue,
     MissingField(String),
+    /// The provided value variant (e.g. F32/F64/Bytes/String) is not supported for serialization.
+    UnsupportedValue { field: String, variant: &'static str },
 }

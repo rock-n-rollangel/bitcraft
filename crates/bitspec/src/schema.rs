@@ -4,7 +4,6 @@ use std::collections::BTreeMap;
 
 use crate::{
     assembly::{ArrayCount, BitOrder},
-    bits,
     compiled::{CompiledField, CompiledFieldKind},
     errors::{CompileError, ReadError, WriteError},
     field::Field,
@@ -139,8 +138,12 @@ impl Schema {
         Ok(map)
     }
 
-    pub fn serialize(&self, obj: &std::collections::BTreeMap<String, crate::value::Value>) -> Result<Vec<u8>, WriteError> {
-        let mut bits: Vec<u8> = Vec::new();
+    pub fn serialize(
+        &self,
+        obj: &std::collections::BTreeMap<String, crate::value::Value>,
+    ) -> Result<Vec<u8>, WriteError> {
+        let total_bytes = (self.total_bits + 7) / 8;
+        let mut buf = vec![0u8; total_bytes];
 
         for field in &self.fields {
             let value = obj
@@ -149,21 +152,29 @@ impl Schema {
 
             match &field.kind {
                 CompiledFieldKind::Scalar(scalar) => {
-                    scalar.disassemble(value, &mut bits)?;
+                    scalar
+                        .disassemble_at(value, &mut buf, 0)
+                        .map_err(|e| attach_field_name(e, &field.name))?;
                 }
                 CompiledFieldKind::Array(array) => {
-                    array.disassemble(value, &mut bits)?;
+                    array
+                        .disassemble_at(value, &mut buf)
+                        .map_err(|e| attach_field_name(e, &field.name))?;
                 }
             }
         }
 
-        Ok(bits::bits_to_bytes(
-            &bits,
-            match &self.write_config {
-                Some(config) => config.bit_order,
-                None => BitOrder::MsbFirst,
-            },
-        ))
+        Ok(buf)
+    }
+}
+
+fn attach_field_name(err: WriteError, field: &str) -> WriteError {
+    match err {
+        WriteError::UnsupportedValue { variant, .. } => WriteError::UnsupportedValue {
+            field: field.to_string(),
+            variant,
+        },
+        other => other,
     }
 }
 
@@ -358,7 +369,7 @@ mod tests {
             kind: FieldKind::Scalar,
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
-            fragments: vec![Fragment::new(0, 4)],
+            fragments: vec![Fragment::new(4, 4)],
             transform: None,
         };
 
@@ -389,9 +400,12 @@ mod tests {
         // value = 0b1101
         let obj = BTreeMap::from([("x".to_string(), Value::U64(0b1101))]);
 
-        // take bits [4..6] then [0..2] → 11 01
+        // total_bits = 4 (len 2 + len 2). Fragment (4,2) gets shift=2, writes
+        // bits [3..2] of value (0b11) at bit offsets 4..5 → 0b0000_1100.
+        // Fragment (0,2) gets shift=0, writes bits [1..0] of value (0b01) at
+        // bit offsets 0..1 → 0b0100_1100.
         let bytes = schema.serialize(&obj).unwrap();
-        assert_eq!(bytes, vec![0b1101_0000]);
+        assert_eq!(bytes, vec![0b0100_1100]);
     }
 
     #[test]
@@ -418,6 +432,41 @@ mod tests {
 
         let bytes = schema.serialize(&obj).unwrap();
         assert_eq!(bytes, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_serialize_respects_fragment_offsets() {
+        let field = Field {
+            name: "x".to_string(),
+            kind: FieldKind::Scalar,
+            signed: false,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
+            fragments: vec![Fragment::new(4, 4)],
+            transform: None,
+        };
+        let schema = Schema::compile(&[field], None).unwrap();
+
+        let obj = BTreeMap::from([("x".to_string(), crate::value::Value::U64(0b1011))]);
+        let bytes = schema.serialize(&obj).unwrap();
+        assert_eq!(bytes, vec![0b0000_1011]);
+    }
+
+    #[test]
+    fn test_serialize_parse_roundtrip_offset() {
+        let field = Field {
+            name: "x".to_string(),
+            kind: FieldKind::Scalar,
+            signed: false,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
+            fragments: vec![Fragment::new(4, 4)],
+            transform: None,
+        };
+        let schema = Schema::compile(&[field], None).unwrap();
+
+        let obj = BTreeMap::from([("x".to_string(), crate::value::Value::U64(0b1011))]);
+        let bytes = schema.serialize(&obj).unwrap();
+        let parsed = schema.parse(&bytes).unwrap();
+        assert_eq!(parsed.get("x"), Some(&crate::value::Value::U64(0b1011)));
     }
 
     #[test]
