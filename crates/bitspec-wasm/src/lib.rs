@@ -38,8 +38,9 @@
 //! // // result is a JS object: { id: 123.5 }
 //! ```
 //!
-//! Error values are converted to `JsValue` with a `Debug` representation,
-//! which makes it easy to inspect failures from JavaScript.
+//! Error values are serialized across the WASM boundary as structured
+//! `{ code, message }` objects, so JavaScript callers can branch on a
+//! stable `code` string and surface the `message` to users.
 
 mod convert;
 mod error;
@@ -96,7 +97,9 @@ impl WasmSchema {
     ///   field names and values have been converted through any configured
     ///   transforms (see [`bitspec::schema::Schema::apply_transforms`]).
     ///
-    /// On error a `JsValue` containing a debug string is returned.
+    /// On error a JavaScript object of shape `{ code, message }` is thrown
+    /// across the boundary, where `code` is a stable string identifier and
+    /// `message` is a human-readable description.
     pub fn parse(&self, data: &[u8]) -> Result<JsValue, JsValue> {
         let result = self
             .schema
