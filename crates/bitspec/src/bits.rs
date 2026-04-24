@@ -41,6 +41,41 @@ pub fn read_bits_at(data: &[u8], bit_pos: usize, n: usize) -> Result<u64, ReadEr
     Ok(value)
 }
 
+/// Writes the low `n` bits of `value` into `data` starting at bit position
+/// `bit_pos`, MSB-first. Bits outside the write range are left unchanged.
+///
+/// Returns `Err(WriteError::OutOfBounds)` if the write would exceed `data`,
+/// or if `n > 64`.
+pub fn write_bits_at(
+    data: &mut [u8],
+    bit_pos: usize,
+    n: usize,
+    value: u64,
+) -> Result<(), crate::errors::WriteError> {
+    if n > 64 {
+        return Err(crate::errors::WriteError::OutOfBounds);
+    }
+    let end = bit_pos
+        .checked_add(n)
+        .ok_or(crate::errors::WriteError::OutOfBounds)?;
+    if end > data.len() * 8 {
+        return Err(crate::errors::WriteError::OutOfBounds);
+    }
+
+    for i in 0..n {
+        let bit = ((value >> (n - 1 - i)) & 1) as u8;
+        let pos = bit_pos + i;
+        let byte_index = pos / 8;
+        let bit_index_in_byte = 7 - (pos % 8);
+        if bit == 1 {
+            data[byte_index] |= 1 << bit_index_in_byte;
+        } else {
+            data[byte_index] &= !(1 << bit_index_in_byte);
+        }
+    }
+    Ok(())
+}
+
 /// Sign-extends the low `bits` of `value` to a full `i64`.
 pub fn sign_extend(value: u64, bits: usize) -> i64 {
     let shift = 64 - bits;
@@ -135,5 +170,28 @@ mod tests {
     #[test]
     fn test_reverse_bits_n() {
         assert_eq!(reverse_bits_n(0b10101010, 8), 0b01010101);
+    }
+
+    #[test]
+    fn test_write_bits_at_aligned() {
+        let mut buf = vec![0u8; 2];
+        write_bits_at(&mut buf, 0, 8, 0xAB).unwrap();
+        assert_eq!(buf, vec![0xAB, 0x00]);
+    }
+
+    #[test]
+    fn test_write_bits_at_unaligned() {
+        let mut buf = vec![0u8; 2];
+        // write 0b1011 (4 bits) starting at bit 4 of byte 0
+        write_bits_at(&mut buf, 4, 4, 0b1011).unwrap();
+        assert_eq!(buf, vec![0b0000_1011, 0x00]);
+    }
+
+    #[test]
+    fn test_write_bits_at_crosses_byte() {
+        let mut buf = vec![0u8; 2];
+        // write 0b1111_1111 (8 bits) starting at bit 4 of byte 0 → straddles byte boundary
+        write_bits_at(&mut buf, 4, 8, 0xFF).unwrap();
+        assert_eq!(buf, vec![0b0000_1111, 0b1111_0000]);
     }
 }
