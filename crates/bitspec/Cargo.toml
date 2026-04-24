@@ -13,6 +13,7 @@ serde = { version = "1", optional = true, features = ["derive"] }
 
 [dev-dependencies]
 criterion = "0.8.1"
+proptest = "1.5"
 
 [[bench]]
 name = "schema_parse"
