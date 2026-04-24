@@ -1,6 +1,6 @@
 //! Schema: compiled set of fields used to parse byte slices into named values.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use crate::{
     assembly::{ArrayCount, BitOrder},
@@ -139,7 +139,7 @@ impl Schema {
         Ok(map)
     }
 
-    pub fn serialize(&self, obj: &HashMap<String, Value>) -> Result<Vec<u8>, WriteError> {
+    pub fn serialize(&self, obj: &std::collections::BTreeMap<String, crate::value::Value>) -> Result<Vec<u8>, WriteError> {
         let mut bits: Vec<u8> = Vec::new();
 
         for field in &self.fields {
@@ -336,7 +336,7 @@ mod tests {
 
         let schema = Schema::compile(&[field], None).unwrap();
 
-        let obj = HashMap::from([("a".to_string(), Value::U64(0xAB))]);
+        let obj = BTreeMap::from([("a".to_string(), Value::U64(0xAB))]);
 
         let bytes = schema.serialize(&obj).unwrap();
         assert_eq!(bytes, vec![0xAB]);
@@ -364,7 +364,7 @@ mod tests {
 
         let schema = Schema::compile(&[a, b], None).unwrap();
 
-        let obj = HashMap::from([
+        let obj = BTreeMap::from([
             ("a".to_string(), Value::U64(0b1010)),
             ("b".to_string(), Value::U64(0b0101)),
         ]);
@@ -387,7 +387,7 @@ mod tests {
         let schema = Schema::compile(&[field], None).unwrap();
 
         // value = 0b1101
-        let obj = HashMap::from([("x".to_string(), Value::U64(0b1101))]);
+        let obj = BTreeMap::from([("x".to_string(), Value::U64(0b1101))]);
 
         // take bits [4..6] then [0..2] → 11 01
         let bytes = schema.serialize(&obj).unwrap();
@@ -411,7 +411,7 @@ mod tests {
 
         let schema = Schema::compile(&[field], None).unwrap();
 
-        let obj = HashMap::from([(
+        let obj = BTreeMap::from([(
             "arr".to_string(),
             Value::Array(vec![Value::U64(1), Value::U64(2), Value::U64(3)]),
         )]);
@@ -433,7 +433,7 @@ mod tests {
 
         let schema = Schema::compile(&[field], None).unwrap();
 
-        let obj = HashMap::from([("x".to_string(), Value::U64(42))]);
+        let obj = BTreeMap::from([("x".to_string(), Value::U64(42))]);
 
         let bytes = schema.serialize(&obj).unwrap();
         let parsed = schema.parse(&bytes).unwrap();

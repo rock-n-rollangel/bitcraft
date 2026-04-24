@@ -103,10 +103,8 @@ impl WasmSchema {
     }
 
     pub fn serialize(&self, obj: JsValue) -> Result<Vec<u8>, JsValue> {
-        let btree: std::collections::BTreeMap<String, bitspec::value::Value> =
+        let map: std::collections::BTreeMap<String, bitspec::value::Value> =
             serde_wasm_bindgen::from_value(obj).map_err(convert::error_to_js)?;
-        let map: std::collections::HashMap<String, bitspec::value::Value> =
-            btree.into_iter().collect();
         self.schema.serialize(&map).map_err(convert::error_to_js)
     }
 }
