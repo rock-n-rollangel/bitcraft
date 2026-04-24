@@ -1,4 +1,6 @@
-//! Property: parse never panics on valid schema + sufficient bytes.
+//! Property: Schema::parse never panics on any byte slice, regardless of
+//! whether the slice has sufficient length for the schema. Well-formed result
+//! or typed `ReadError` — never a panic.
 
 use bitspec::{
     assembly::{Assemble, BitOrder},
