@@ -7,8 +7,7 @@ use bitspec::{
 use criterion::{Criterion, criterion_group, criterion_main};
 
 fn gen_field(iter: usize) -> Field {
-    #[cfg(feature = "transform")]
-    let field = Field {
+    Field {
         name: format!("f{}", iter),
         kind: FieldKind::Scalar,
         signed: false,
@@ -19,22 +18,7 @@ fn gen_field(iter: usize) -> Field {
             ..Default::default()
         }],
         transform: None,
-    };
-
-    #[cfg(not(feature = "transform"))]
-    let field = Field {
-        name: format!("f{}", iter),
-        kind: FieldKind::Scalar,
-        signed: false,
-        assemble: Assemble::Concat(BitOrder::MsbFirst),
-        fragments: vec![Fragment {
-            offset_bits: iter * 16,
-            len_bits: 16,
-            ..Default::default()
-        }],
-    };
-
-    field
+    }
 }
 
 fn gen_schema(field_count: usize) -> Schema {

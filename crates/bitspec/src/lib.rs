@@ -21,6 +21,7 @@
 //!         signed: false,
 //!         assemble: Assemble::Concat(BitOrder::MsbFirst),
 //!         fragments: vec![Fragment { offset_bits: 0, len_bits: 8, ..Default::default() }],
+//!         transform: None,
 //!     },
 //! ];
 //! let schema = Schema::compile(&fields, Some(WriteConfig::default())).unwrap();
@@ -40,7 +41,6 @@ pub mod value;
 #[cfg(feature = "serde")]
 pub mod serde;
 
-#[cfg(feature = "transform")]
 pub mod transform;
 
 pub use value::Value;

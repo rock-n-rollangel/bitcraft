@@ -19,7 +19,6 @@ fn arb_field(start_bit: usize) -> BoxedStrategy<(Field, usize)> {
                 signed: false,
                 assemble: Assemble::Concat(BitOrder::MsbFirst),
                 fragments: vec![Fragment::new(start_bit, len_bits)],
-                #[cfg(feature = "transform")]
                 transform: None,
             };
             Just((field, start_bit + len_bits))

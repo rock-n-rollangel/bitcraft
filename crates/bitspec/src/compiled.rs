@@ -253,7 +253,7 @@ impl TryFrom<&crate::fragment::Fragment> for CompiledFragment {
     }
 }
 
-#[cfg(all(test, not(feature = "transform")))]
+#[cfg(test)]
 mod tests {
     use crate::{compiled::CompiledScalar, field::Field, fragment::Fragment};
 
@@ -273,6 +273,7 @@ mod tests {
                 len_bits: 2,
                 ..Default::default()
             }],
+            transform: None,
         };
 
         let value_field = Field {
@@ -285,6 +286,7 @@ mod tests {
                 len_bits: 11,
                 ..Default::default()
             }],
+            transform: None,
         };
 
         let crc_field = Field {
@@ -297,6 +299,7 @@ mod tests {
                 len_bits: 3,
                 ..Default::default()
             }],
+            transform: None,
         };
 
         let compiled_id_field = CompiledScalar::try_from(&id_field).unwrap();
@@ -333,6 +336,7 @@ mod tests {
                     ..Default::default()
                 },
             ],
+            transform: None,
         };
 
         let second_value_field = Field {
@@ -352,6 +356,7 @@ mod tests {
                     ..Default::default()
                 },
             ],
+            transform: None,
         };
 
         let compiled_first_value_field = CompiledScalar::try_from(&first_value_field).unwrap();
@@ -385,6 +390,7 @@ mod tests {
                     ..Default::default()
                 },
             ],
+            transform: None,
         };
 
         let compiled_value_field = CompiledScalar::try_from(&value_field).unwrap();
@@ -411,6 +417,7 @@ mod tests {
                     ..Default::default()
                 },
             ],
+            transform: None,
         };
 
         let compiled = CompiledScalar::try_from(&field).unwrap();
@@ -439,6 +446,7 @@ mod tests {
                     ..Default::default()
                 },
             ],
+            transform: None,
         };
 
         let compiled = CompiledScalar::try_from(&field).unwrap();

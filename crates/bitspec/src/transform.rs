@@ -15,6 +15,7 @@
 use std::collections::HashMap;
 
 /// Errors that can occur when applying a transform to a raw value.
+#[cfg(feature = "transform")]
 #[derive(Debug, PartialEq, Eq)]
 pub enum TransformError {
     /// The raw value cannot be interpreted as the requested base type.
@@ -185,6 +186,7 @@ impl Transform {
     }
 }
 
+#[cfg(feature = "transform")]
 impl Transform {
     /// Applies the transform to a single scalar value (no array handling).
     fn apply_scalar(&self, raw: crate::value::Value) -> Result<crate::value::Value, TransformError> {
@@ -249,6 +251,7 @@ impl Transform {
 
 /// Interprets a raw assembly value according to the given base type (int/float32/float64).
 /// Bytes base is not handled here; use `extract_bytes` for that.
+#[cfg(feature = "transform")]
 fn reinterpret_base(base: &Base, value: crate::value::Value) -> Result<crate::value::Value, TransformError> {
     use crate::value::Value;
     match (base, value) {
@@ -270,6 +273,7 @@ fn reinterpret_base(base: &Base, value: crate::value::Value) -> Result<crate::va
 }
 
 /// Extracts a byte vector from an array of byte-sized U64/I64 values.
+#[cfg(feature = "transform")]
 fn extract_bytes(raw: crate::value::Value) -> Result<Vec<u8>, TransformError> {
     use crate::value::Value;
     match raw {
@@ -299,6 +303,7 @@ fn extract_bytes(raw: crate::value::Value) -> Result<Vec<u8>, TransformError> {
 }
 
 /// Applies scale and offset to numeric values: value * scale + offset.
+#[cfg(feature = "transform")]
 fn apply_numeric_modifiers(
     value: crate::value::Value,
     scale: Option<f64>,
@@ -321,6 +326,7 @@ fn apply_numeric_modifiers(
 }
 
 /// If encoding is set, decodes bytes to a string (UTF-8 or ASCII), optionally zero-terminated and trimmed.
+#[cfg(feature = "transform")]
 fn apply_string(
     value: crate::value::Value,
     encoding: &Option<Encoding>,
@@ -359,6 +365,7 @@ fn apply_string(
 }
 
 /// If enum_map is set, maps an integer value to its string label.
+#[cfg(feature = "transform")]
 fn apply_enum(
     value: crate::value::Value,
     enum_map: &Option<std::collections::HashMap<i64, String>>,
@@ -381,9 +388,10 @@ fn apply_enum(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "transform"))]
 use crate::value::Value;
 
+#[cfg(feature = "transform")]
 #[test]
 fn test_float32_from_bits() {
     let transform = Transform {
@@ -402,6 +410,7 @@ fn test_float32_from_bits() {
     assert_eq!(result, Value::F32(3.2415927));
 }
 
+#[cfg(feature = "transform")]
 #[test]
 fn test_float64_from_bits() {
     let transform = Transform {
@@ -420,6 +429,7 @@ fn test_float64_from_bits() {
     assert_eq!(result, Value::F64(3.241592653589793));
 }
 
+#[cfg(feature = "transform")]
 #[test]
 fn test_floats_failure() {
     let transform = Transform {
@@ -446,6 +456,7 @@ fn test_floats_failure() {
     assert!(transform_64.apply(crate::value::Value::I64(0)).is_err());
 }
 
+#[cfg(feature = "transform")]
 #[test]
 fn test_int() {
     let mut transform = Transform {
@@ -481,6 +492,7 @@ fn test_int() {
     );
 }
 
+#[cfg(feature = "transform")]
 #[test]
 fn test_bytes() {
     let transform = Transform {
@@ -502,6 +514,7 @@ fn test_bytes() {
     assert_eq!(result, Value::Bytes(vec![10, 20, 30]));
 }
 
+#[cfg(feature = "transform")]
 #[test]
 fn test_bytes_failure() {
     let transform = Transform {
@@ -523,6 +536,7 @@ fn test_bytes_failure() {
     assert!(transform.apply(value).is_err());
 }
 
+#[cfg(feature = "transform")]
 #[test]
 fn test_string() {
     let mut transform = Transform {
@@ -557,6 +571,7 @@ fn test_string() {
     );
 }
 
+#[cfg(feature = "transform")]
 #[test]
 fn test_string_ascii_failure() {
     let transform = Transform {
@@ -580,6 +595,7 @@ fn test_string_ascii_failure() {
     assert!(transform.apply(value).is_err());
 }
 
+#[cfg(feature = "transform")]
 #[test]
 fn test_enum() {
     let transform = Transform {
@@ -605,6 +621,7 @@ fn test_enum() {
     );
 }
 
+#[cfg(feature = "transform")]
 #[test]
 fn test_array() {
     let transform = Transform {
@@ -632,6 +649,7 @@ fn test_array() {
     );
 }
 
+#[cfg(feature = "transform")]
 #[test]
 fn test_byte_array() {
     let transform = Transform {

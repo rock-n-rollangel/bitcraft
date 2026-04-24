@@ -33,24 +33,17 @@ impl Default for WriteConfig {
     }
 }
 
-/// A compiled schema: list of [CompiledField]s and total bit length. Use [Schema::compile] to build from [Field]s, then [Schema::parse] to parse bytes.
+/// A compiled schema: list of [`CompiledField`]s and total bit length.
+/// Use [`Schema::compile`] to build from [`Field`]s, then [`Schema::parse`] to parse bytes.
 #[derive(Debug, Clone)]
-#[cfg(not(feature = "transform"))]
 pub struct Schema {
     total_bits: usize,
     /// Compiled fields in definition order.
     pub fields: Vec<CompiledField>,
+    /// Optional write configuration (bit order for serialize).
     pub write_config: Option<WriteConfig>,
-}
-
-#[derive(Debug, Clone)]
-#[cfg(feature = "transform")]
-pub struct Schema {
-    total_bits: usize,
-    /// Compiled fields in definition order.
-    pub fields: Vec<CompiledField>,
-    pub write_config: Option<WriteConfig>,
-    transforms: HashMap<String, crate::transform::Transform>,
+    #[cfg_attr(not(feature = "transform"), allow(dead_code))]
+    transforms: std::collections::HashMap<String, crate::transform::Transform>,
 }
 
 #[cfg(feature = "serde")]
@@ -65,14 +58,14 @@ impl TryFrom<crate::serde::SchemaDef> for Schema {
 }
 
 impl Schema {
-    /// Compiles a slice of [Field]s into a schema. Fails if any field is invalid.
-    #[cfg(not(feature = "transform"))]
+    /// Compiles a slice of [`Field`]s into a schema. Fails if any field is invalid.
     pub fn compile(
         fields: &[Field],
         write_config: Option<WriteConfig>,
     ) -> Result<Self, CompileError> {
         let mut compiled_fields: Vec<CompiledField> = Vec::with_capacity(fields.len());
         let mut total_bits = 0;
+        let mut transforms = std::collections::HashMap::new();
 
         for field in fields {
             let compiled_field: CompiledField = field.try_into()?;
@@ -86,51 +79,9 @@ impl Schema {
                 }
                 CompiledFieldKind::Array(array) => {
                     let ArrayCount::Fixed(count) = array.count;
-
                     let end = array.offset_bits
                         + array.element.total_bits
                         + array.stride_bits * (count - 1);
-
-                    total_bits = total_bits.max(end);
-                }
-            }
-
-            compiled_fields.push(compiled_field);
-        }
-
-        Ok(Self {
-            fields: compiled_fields,
-            total_bits,
-            write_config,
-        })
-    }
-
-    #[cfg(feature = "transform")]
-    pub fn compile(
-        fields: &[Field],
-        write_config: Option<WriteConfig>,
-    ) -> Result<Self, CompileError> {
-        let mut compiled_fields: Vec<CompiledField> = Vec::with_capacity(fields.len());
-        let mut total_bits = 0;
-        let mut transforms = HashMap::<String, crate::transform::Transform>::new();
-
-        for field in fields {
-            let compiled_field: CompiledField = field.try_into()?;
-
-            match &compiled_field.kind {
-                CompiledFieldKind::Scalar(scalar) => {
-                    for frag in &scalar.fragments {
-                        let end = frag.offset_bits + frag.len_bits;
-                        total_bits = total_bits.max(end);
-                    }
-                }
-                CompiledFieldKind::Array(array) => {
-                    let ArrayCount::Fixed(count) = array.count;
-
-                    let end = array.offset_bits
-                        + array.element.total_bits
-                        + array.stride_bits * (count - 1);
-
                     total_bits = total_bits.max(end);
                 }
             }
@@ -216,7 +167,7 @@ impl Schema {
     }
 }
 
-#[cfg(all(test, not(feature = "transform")))]
+#[cfg(test)]
 mod tests {
     use crate::{
         assembly::{Assemble, BitOrder},
@@ -246,6 +197,7 @@ mod tests {
                 len_bits: 1,
                 ..Default::default()
             }],
+            transform: None,
         };
         let schema = Schema::compile(&vec![field], None).unwrap();
         let data = vec![0x01, 0x02, 0x03, 0x04];
@@ -268,6 +220,7 @@ mod tests {
                 len_bits: 8,
                 ..Default::default()
             }],
+            transform: None,
         };
         let field2 = Field {
             name: "test2".to_string(),
@@ -279,6 +232,7 @@ mod tests {
                 len_bits: 16,
                 ..Default::default()
             }],
+            transform: None,
         };
         let schema = Schema::compile(&vec![field1, field2], None).unwrap();
         let data = vec![0x01, 0x00, 0x01, 0x04];
@@ -308,6 +262,7 @@ mod tests {
                 len_bits: 8,
                 ..Default::default()
             }],
+            transform: None,
         };
 
         let schema = Schema::compile(&vec![field], None).unwrap();
@@ -339,6 +294,7 @@ mod tests {
                 len_bits: 16,
                 ..Default::default()
             }],
+            transform: None,
         };
 
         let temperature_field = Field {
@@ -351,6 +307,7 @@ mod tests {
                 len_bits: 8,
                 ..Default::default()
             }],
+            transform: None,
         };
 
         let values_field = Field {
@@ -367,6 +324,7 @@ mod tests {
                 len_bits: 8,
                 ..Default::default()
             }],
+            transform: None,
         };
 
         let schema =
@@ -405,6 +363,7 @@ mod tests {
                 len_bits: 8,
                 ..Default::default()
             }],
+            transform: None,
         };
 
         let schema = Schema::compile(&[field], None).unwrap();
@@ -427,6 +386,7 @@ mod tests {
                 len_bits: 4,
                 ..Default::default()
             }],
+            transform: None,
         };
 
         let b = Field {
@@ -439,6 +399,7 @@ mod tests {
                 len_bits: 4,
                 ..Default::default()
             }],
+            transform: None,
         };
 
         let schema = Schema::compile(&[a, b], None).unwrap();
@@ -471,6 +432,7 @@ mod tests {
                     ..Default::default()
                 },
             ],
+            transform: None,
         };
 
         let schema = Schema::compile(&[field], None).unwrap();
@@ -499,6 +461,7 @@ mod tests {
                 len_bits: 8,
                 ..Default::default()
             }],
+            transform: None,
         };
 
         let schema = Schema::compile(&[field], None).unwrap();
@@ -524,6 +487,7 @@ mod tests {
                 len_bits: 8,
                 ..Default::default()
             }],
+            transform: None,
         };
 
         let schema = Schema::compile(&[field], None).unwrap();
