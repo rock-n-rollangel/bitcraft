@@ -35,9 +35,12 @@ pub mod errors;
 pub mod field;
 pub mod fragment;
 pub mod schema;
+pub mod value;
 
 #[cfg(feature = "serde")]
 pub mod serde;
 
 #[cfg(feature = "transform")]
 pub mod transform;
+
+pub use value::Value;
