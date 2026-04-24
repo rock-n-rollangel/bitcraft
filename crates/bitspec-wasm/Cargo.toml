@@ -2,7 +2,13 @@
 name = "bitspec-wasm"
 version = "0.1.0"
 edition = "2024"
-description = "WASM bindings for the bitspec binary schema and transform engine"
+authors = ["Valera Dolgov <sxmebytes@gmail.com>"]
+description = "WebAssembly bindings for the bitspec schema engine."
+repository = "https://github.com/somebytes/bitspec"
+license = "MIT"
+readme = "README.md"
+keywords = ["bitspec", "wasm", "bindings", "binary", "parser"]
+categories = ["wasm", "parser-implementations"]
 
 [lib]
 crate-type = ["cdylib"]

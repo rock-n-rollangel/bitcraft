@@ -2,6 +2,14 @@
 name = "bitspec"
 version = "0.1.0"
 edition = "2024"
+authors = ["Valera Dolgov <sxmebytes@gmail.com>"]
+description = "Runtime bit-level parser and serializer for binary data described by declarative schemas."
+repository = "https://github.com/somebytes/bitspec"
+homepage = "https://github.com/somebytes/bitspec"
+license = "MIT"
+readme = "README.md"
+keywords = ["binary", "parser", "bit", "schema", "serialization"]
+categories = ["parser-implementations", "encoding"]
 
 [features]
 default = []
