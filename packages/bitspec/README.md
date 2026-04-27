@@ -194,7 +194,7 @@ The full set of `BitspecErrorCode` values:
 
 ## Building from source
 
-The package lives inside the [bitcraft repo](https://github.com/somebytes/bitspec). From `packages/bitspec`:
+The package lives inside the [bitspec repo](https://github.com/somebytes/bitspec). From `packages/bitspec`:
 
 ```bash
 npm install

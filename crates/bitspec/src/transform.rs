@@ -89,7 +89,8 @@ pub enum Encoding {
 ///
 /// ## Example
 ///
-/// ```
+/// ```ignore
+/// // Requires the `transform` feature.
 /// use bitspec::transform::{Transform, Base};
 /// use bitspec::value::Value;
 ///

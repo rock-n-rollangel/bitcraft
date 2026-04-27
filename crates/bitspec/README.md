@@ -276,7 +276,7 @@ All four implement `std::error::Error` and `Display`.
 
 ## Performance
 
-The internal `read_bits_at` routine coalesces adjacent byte reads where possible, and `Schema::parse` walks the field list without allocating beyond the result map. On the write side there is still a known opportunity for a byte-level fast path in `write_bits_at` when the fragment is byte-aligned, which would avoid the per-bit shift loop. Formal benchmarks live under `benches/schema_parse.rs` and will gain hard numbers ahead of the 0.1.0 release.
+The internal `read_bits_at` routine coalesces adjacent byte reads where possible, and `Schema::parse` walks the field list without allocating beyond the result map. On the write side there is still a known opportunity for a byte-level fast path in `write_bits_at` when the fragment is byte-aligned, which would avoid the per-bit shift loop. Formal benchmarks live under `benches/parse.rs` and `benches/serialize.rs` and will gain hard numbers ahead of the 0.1.0 release.
 
 ## Minimum supported Rust version
 

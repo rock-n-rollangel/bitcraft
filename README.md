@@ -93,7 +93,7 @@ console.log(bytes); // Uint8Array(1) [ 165 ]
 This is a Cargo workspace plus a standalone npm package. The two Rust crates share a single `Cargo.lock`; the npm package pulls the wasm crate in as a build step via `wasm-pack`.
 
 ```
-bitcraft/
+bitspec/
 ├── Cargo.toml              # workspace root
 ├── LICENSE
 ├── README.md               # this file
