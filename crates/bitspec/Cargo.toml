@@ -24,5 +24,9 @@ criterion = "0.8.1"
 proptest = "1.5"
 
 [[bench]]
-name = "schema_parse"
+name = "parse"
+harness = false
+
+[[bench]]
+name = "serialize"
 harness = false
