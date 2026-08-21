@@ -106,11 +106,11 @@ bitspec/
 
 ## Status
 
-Unpublished. APIs are stabilizing toward a 0.1.0 release but not yet available on crates.io or npm. To try it today, clone this repo and depend on the crate via a path or git dependency, or build the TypeScript package from source (see [`packages/bitspec/README.md`](./packages/bitspec/README.md)).
+0.1.0, available as the [`bitspec`](https://crates.io/crates/bitspec) crate and the [`bitspec`](https://www.npmjs.com/package/bitspec) npm package. Pre-1.0, so the API may still shift between minor versions. `bitspec-wasm` is not published separately — it is built into the npm package.
 
 ## Contributing
 
-This is a single-author project right now. Issues and small PRs against `main` are welcome once 0.1.0 ships; until then, expect the API to shift as the release prep shakes out the remaining rough edges.
+This is a single-author project right now. Issues and small PRs against `main` are welcome. Expect the API to keep shifting somewhat before 1.0.
 
 ## License
 

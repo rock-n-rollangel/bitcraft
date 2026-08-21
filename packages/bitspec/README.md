@@ -10,8 +10,6 @@ TypeScript wrapper around the [bitspec](https://github.com/somebytes/bitspec) sc
 npm install bitspec
 ```
 
-> Note: `bitspec` is not yet published to npm. For now, clone the repo and run `npm run build` inside `packages/bitspec` to produce `dist/` and `wasm/`, then depend on the package via a local path or `npm link`.
-
 ## Quick start
 
 ```ts

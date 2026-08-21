@@ -21,13 +21,6 @@ The Rust ecosystem already has excellent binary-format libraries. They divide cl
 bitspec = "0.1"
 ```
 
-> Note: `bitspec` is not yet published to crates.io. For now, depend on it via git or a local path, for example:
->
-> ```toml
-> [dependencies]
-> bitspec = { git = "https://github.com/somebytes/bitspec" }
-> ```
-
 ## Feature flags
 
 - `serde` — enables the `serde::SchemaDef` family of JSON-deserializable types and `Serialize`/`Deserialize` impls on `Value`.

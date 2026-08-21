@@ -1,8 +1,27 @@
 {
   "name": "bitspec",
   "version": "0.1.0",
-  "description": "TypeScript wrapper for the bitspec schema engine.",
+  "description": "Runtime bit-level parser and serializer for binary data described by declarative schemas, compiled to WebAssembly.",
   "type": "module",
+  "license": "MIT",
+  "author": "Valera Dolgov <sxmebytes@gmail.com>",
+  "homepage": "https://github.com/somebytes/bitspec#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/somebytes/bitspec.git",
+    "directory": "packages/bitspec"
+  },
+  "bugs": {
+    "url": "https://github.com/somebytes/bitspec/issues"
+  },
+  "keywords": [
+    "binary",
+    "parser",
+    "bit",
+    "schema",
+    "serialization",
+    "wasm"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -13,10 +32,12 @@
   },
   "files": [
     "dist",
-    "wasm"
+    "wasm",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
-    "build:wasm": "wasm-pack build ../../crates/bitspec-wasm --target web --out-dir ../../packages/bitspec/wasm",
+    "build:wasm": "wasm-pack build ../../crates/bitspec-wasm --target web --out-dir ../../packages/bitspec/wasm && rm -f wasm/.gitignore",
     "build:ts": "tsc",
     "build": "npm run build:wasm && npm run build:ts",
     "test": "vitest run",
