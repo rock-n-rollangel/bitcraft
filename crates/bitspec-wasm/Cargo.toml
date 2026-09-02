@@ -1,6 +1,6 @@
 [package]
 name = "bitspec-wasm"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
 authors = ["Valera Dolgov <sxmebytes@gmail.com>"]
 description = "WebAssembly bindings for the bitspec schema engine."
