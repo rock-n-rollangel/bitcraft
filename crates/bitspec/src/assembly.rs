@@ -47,4 +47,6 @@ impl Default for BitOrder {
 pub enum ArrayCount {
     /// Array has a fixed, known-at-compile-time number of elements.
     Fixed(usize),
+    /// Array length is read at parse time from another (scalar) field's value.
+    FromField(String),
 }

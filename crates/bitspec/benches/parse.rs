@@ -41,7 +41,7 @@ fn bench_parse_array(c: &mut Criterion) {
     for &n in &[10usize, 1000] {
         let field = Field {
             name: "arr".into(),
-            kind: FieldKind::Array(ArraySpec { count: n, stride_bits: 8, offset_bits: 0 }),
+            kind: FieldKind::Array(ArraySpec { count: bitspec::assembly::ArrayCount::Fixed(n), stride_bits: 8, offset_bits: 0 }),
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
             fragments: vec![Fragment::new(0, 8)],

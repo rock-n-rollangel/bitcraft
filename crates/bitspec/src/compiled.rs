@@ -39,7 +39,7 @@ impl TryFrom<&crate::field::Field> for CompiledField {
             FieldKind::Array(spec) => {
                 if spec.stride_bits < compiled_scalar.total_bits {
                     return Err(CompileError::InvalidArrayStride);
-                } else if spec.count == 0 {
+                } else if matches!(spec.count, ArrayCount::Fixed(0)) {
                     return Err(CompileError::InvalidArrayCount);
                 } else if value.fragments.len() == 0 {
                     return Err(CompileError::EmptyArrayElement);
@@ -49,7 +49,7 @@ impl TryFrom<&crate::field::Field> for CompiledField {
                     name: value.name.clone(),
                     kind: CompiledFieldKind::Array(CompiledArray {
                         element: compiled_scalar,
-                        count: ArrayCount::Fixed(spec.count),
+                        count: spec.count.clone(),
                         stride_bits: spec.stride_bits,
                         offset_bits: spec.offset_bits,
                     }),
@@ -76,12 +76,8 @@ pub struct CompiledArray {
 }
 
 impl CompiledArray {
-    /// Assembles the array from `data` into a [Value::Array].
-    pub fn assemble(&self, data: &[u8]) -> Result<Value, ReadError> {
-        let count = match self.count {
-            ArrayCount::Fixed(count) => count,
-        };
-
+    /// Assembles `count` elements of the array from `data` into a [Value::Array].
+    pub fn assemble_with_count(&self, data: &[u8], count: usize) -> Result<Value, ReadError> {
         let mut values = Vec::<Value>::with_capacity(count);
         for i in 0..count {
             let offset = self.offset_bits + i * self.stride_bits;
@@ -101,11 +97,10 @@ impl CompiledArray {
     ) -> Result<(), WriteError> {
         match value {
             Value::Array(values) => {
-                let count = match self.count {
-                    ArrayCount::Fixed(c) => c,
-                };
-                if values.len() != count {
-                    return Err(WriteError::InvalidValue);
+                if let ArrayCount::Fixed(count) = &self.count {
+                    if values.len() != *count {
+                        return Err(WriteError::InvalidValue);
+                    }
                 }
                 for (i, v) in values.iter().enumerate() {
                     let elem_offset = self.offset_bits + i * self.stride_bits;

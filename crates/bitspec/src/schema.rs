@@ -111,10 +111,16 @@ impl Schema {
                     }
                 }
                 CompiledFieldKind::Array(array) => {
-                    let ArrayCount::Fixed(count) = array.count;
-                    let end = array.offset_bits
-                        + array.element.total_bits
-                        + array.stride_bits * (count - 1);
+                    let end = match &array.count {
+                        ArrayCount::Fixed(count) => {
+                            array.offset_bits
+                                + array.element.total_bits
+                                + array.stride_bits * (count - 1)
+                        }
+                        // Dynamic arrays contribute only their start offset to
+                        // the static size; their extent is known at parse time.
+                        ArrayCount::FromField(_) => array.offset_bits,
+                    };
                     total_bits = total_bits.max(end);
                 }
             }
@@ -166,7 +172,11 @@ impl Schema {
                     map.insert(field.name.clone(), scalar.assemble(data)?);
                 }
                 CompiledFieldKind::Array(array) => {
-                    map.insert(field.name.clone(), array.assemble(data)?);
+                    let count = match &array.count {
+                        ArrayCount::Fixed(count) => *count,
+                        ArrayCount::FromField(_) => todo!("dynamic array count"),
+                    };
+                    map.insert(field.name.clone(), array.assemble_with_count(data, count)?);
                 }
             }
         }
@@ -224,7 +234,7 @@ fn attach_field_name(err: WriteError, field: &str) -> WriteError {
 #[cfg(test)]
 mod tests {
     use crate::{
-        assembly::{Assemble, BitOrder},
+        assembly::{ArrayCount, Assemble, BitOrder},
         field::{ArraySpec, Field, FieldKind},
         fragment::Fragment,
     };
@@ -293,7 +303,7 @@ mod tests {
         let field = Field {
             name: "test".to_string(),
             kind: FieldKind::Array(ArraySpec {
-                count: 4,
+                count: ArrayCount::Fixed(4),
                 stride_bits: 8,
                 offset_bits: 0,
             }),
@@ -343,7 +353,7 @@ mod tests {
         let values_field = Field {
             name: "values".to_string(),
             kind: FieldKind::Array(ArraySpec {
-                count: 5,
+                count: ArrayCount::Fixed(5),
                 stride_bits: 8,
                 offset_bits: 24,
             }),
@@ -456,7 +466,7 @@ mod tests {
         let field = Field {
             name: "arr".to_string(),
             kind: FieldKind::Array(ArraySpec {
-                count: 3,
+                count: ArrayCount::Fixed(3),
                 stride_bits: 8,
                 offset_bits: 0, // irrelevant for serialize
             }),

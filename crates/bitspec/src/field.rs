@@ -71,7 +71,7 @@ impl From<crate::serde::FieldKindDef> for FieldKind {
                 stride_bits,
                 offset_bits,
             } => FieldKind::Array(ArraySpec {
-                count,
+                count: crate::assembly::ArrayCount::Fixed(count),
                 stride_bits,
                 offset_bits,
             }),
@@ -82,8 +82,8 @@ impl From<crate::serde::FieldKindDef> for FieldKind {
 /// Parameters for an array field: count, stride, and start offset in bits.
 #[derive(Debug, Clone)]
 pub struct ArraySpec {
-    /// Number of elements.
-    pub count: usize,
+    /// Number of elements: fixed, or read from another field at parse time.
+    pub count: crate::assembly::ArrayCount,
     /// Distance in bits between the start of consecutive elements.
     pub stride_bits: usize,
     /// Bit offset where the first element starts.
