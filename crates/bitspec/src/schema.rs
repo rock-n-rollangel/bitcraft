@@ -103,6 +103,21 @@ impl Schema {
         for field in fields {
             let compiled_field: CompiledField = field.try_into()?;
 
+            if let CompiledFieldKind::Array(array) = &compiled_field.kind {
+                if let ArrayCount::FromField(count_name) = &array.count {
+                    let count_field = fields
+                        .iter()
+                        .find(|f| &f.name == count_name)
+                        .ok_or_else(|| CompileError::UnknownCountField(count_name.clone()))?;
+                    let valid = matches!(count_field.kind, crate::field::FieldKind::Scalar)
+                        && !count_field.signed
+                        && count_field.transform.is_none();
+                    if !valid {
+                        return Err(CompileError::InvalidCountField(count_name.clone()));
+                    }
+                }
+            }
+
             match &compiled_field.kind {
                 CompiledFieldKind::Scalar(scalar) => {
                     for frag in &scalar.fragments {
@@ -131,6 +146,8 @@ impl Schema {
 
             compiled_fields.push(compiled_field);
         }
+
+        validate_dynamic_array_tail(&compiled_fields)?;
 
         Ok(Self {
             fields: compiled_fields,
@@ -172,16 +189,42 @@ impl Schema {
                     map.insert(field.name.clone(), scalar.assemble(data)?);
                 }
                 CompiledFieldKind::Array(array) => {
-                    let count = match &array.count {
-                        ArrayCount::Fixed(count) => *count,
-                        ArrayCount::FromField(_) => todo!("dynamic array count"),
-                    };
+                    let count = self.resolve_count(array, data)?;
+                    if array_end_bits(array, count).map_or(true, |end| data.len() * 8 < end) {
+                        return Err(ReadError::PacketTooShort);
+                    }
                     map.insert(field.name.clone(), array.assemble_with_count(data, count)?);
                 }
             }
         }
 
         Ok(map)
+    }
+
+    /// Returns the element count for `array`: the fixed count, or the value of
+    /// the referenced count field read from `data`.
+    fn resolve_count(
+        &self,
+        array: &crate::compiled::CompiledArray,
+        data: &[u8],
+    ) -> Result<usize, ReadError> {
+        match &array.count {
+            ArrayCount::Fixed(count) => Ok(*count),
+            ArrayCount::FromField(name) => {
+                let scalar = self
+                    .fields
+                    .iter()
+                    .find_map(|f| match &f.kind {
+                        CompiledFieldKind::Scalar(s) if &f.name == name => Some(s),
+                        _ => None,
+                    })
+                    .expect("count field validated at compile time");
+                match scalar.assemble(data)? {
+                    Value::U64(v) => Ok(v as usize),
+                    _ => unreachable!("count field validated as unsigned at compile time"),
+                }
+            }
+        }
     }
 
     /// Serializes `obj` into bytes according to this schema, respecting [`WriteConfig`].
@@ -219,6 +262,69 @@ impl Schema {
 
         Ok(buf)
     }
+}
+
+/// Bit offset one past the last element of `array` holding `count` elements,
+/// or `None` on arithmetic overflow (a count that cannot possibly fit).
+fn array_end_bits(array: &crate::compiled::CompiledArray, count: usize) -> Option<usize> {
+    if count == 0 {
+        return Some(array.offset_bits);
+    }
+    array
+        .stride_bits
+        .checked_mul(count - 1)?
+        .checked_add(array.offset_bits)?
+        .checked_add(array.element.total_bits)
+}
+
+/// Ensures at most one dynamic array exists and that nothing in the layout
+/// extends past its start offset (the dynamic array must be the tail).
+fn validate_dynamic_array_tail(fields: &[CompiledField]) -> Result<(), CompileError> {
+    let mut dynamic: Option<&CompiledField> = None;
+    for field in fields {
+        if let CompiledFieldKind::Array(array) = &field.kind {
+            if matches!(array.count, ArrayCount::FromField(_)) {
+                if dynamic.is_some() {
+                    return Err(CompileError::MultipleDynamicArrays);
+                }
+                dynamic = Some(field);
+            }
+        }
+    }
+
+    let Some(dynamic_field) = dynamic else {
+        return Ok(());
+    };
+    let CompiledFieldKind::Array(dynamic_array) = &dynamic_field.kind else {
+        unreachable!()
+    };
+
+    for field in fields {
+        if field.name == dynamic_field.name {
+            continue;
+        }
+        let end = match &field.kind {
+            CompiledFieldKind::Scalar(scalar) => scalar
+                .fragments
+                .iter()
+                .map(|frag| frag.offset_bits + frag.len_bits)
+                .max()
+                .unwrap_or(0),
+            CompiledFieldKind::Array(array) => match &array.count {
+                ArrayCount::Fixed(count) => {
+                    array.offset_bits
+                        + array.element.total_bits
+                        + array.stride_bits * (count - 1)
+                }
+                ArrayCount::FromField(_) => unreachable!("checked above"),
+            },
+        };
+        if end > dynamic_array.offset_bits {
+            return Err(CompileError::DynamicArrayNotAtTail(dynamic_field.name.clone()));
+        }
+    }
+
+    Ok(())
 }
 
 fn attach_field_name(err: WriteError, field: &str) -> WriteError {

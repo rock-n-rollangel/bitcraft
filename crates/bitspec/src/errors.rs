@@ -19,6 +19,15 @@ pub enum CompileError {
     EmptyArrayElement,
     /// Field name is invalid (e.g. empty or duplicate).
     InvalidFieldName,
+    /// A dynamic array references a count field that does not exist in the schema.
+    UnknownCountField(String),
+    /// A dynamic array's count field is not a plain unsigned scalar.
+    InvalidCountField(String),
+    /// A dynamic array must be the last thing in the layout; another field
+    /// extends past its start offset.
+    DynamicArrayNotAtTail(String),
+    /// A schema may contain at most one dynamic array.
+    MultipleDynamicArrays,
 }
 
 impl fmt::Display for CompileError {
@@ -31,6 +40,20 @@ impl fmt::Display for CompileError {
             Self::InvalidFieldKind => write!(f, "unsupported field kind"),
             Self::EmptyArrayElement => write!(f, "array element has no fragments"),
             Self::InvalidFieldName => write!(f, "field name is empty or duplicated"),
+            Self::UnknownCountField(name) => {
+                write!(f, "dynamic array references unknown count field '{name}'")
+            }
+            Self::InvalidCountField(name) => write!(
+                f,
+                "count field '{name}' must be an unsigned scalar without a transform"
+            ),
+            Self::DynamicArrayNotAtTail(name) => write!(
+                f,
+                "dynamic array '{name}' must be the last field in the layout"
+            ),
+            Self::MultipleDynamicArrays => {
+                write!(f, "schema may contain at most one dynamic array")
+            }
         }
     }
 }
