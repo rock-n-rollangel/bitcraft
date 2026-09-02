@@ -24,10 +24,16 @@ export interface FragmentDef {
   bit_order?: BitOrderDef;
 }
 
-/** Scalar or fixed-size array field kind. */
+/**
+ * Number of elements in an array field: a fixed count, or a reference to
+ * another (unsigned scalar) field whose parsed value supplies the count.
+ */
+export type ArrayCountDef = number | { from_field: string };
+
+/** Scalar or array field kind. */
 export type FieldKindDef =
   | { type: "Scalar" }
-  | { type: "Array"; count: number; stride_bits: number; offset_bits: number };
+  | { type: "Array"; count: ArrayCountDef; stride_bits: number; offset_bits: number };
 
 /** Transform base type. */
 export type BaseDef = "Int" | "Float32" | "Float64" | "Bytes";

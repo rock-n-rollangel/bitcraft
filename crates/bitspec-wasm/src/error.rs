@@ -30,6 +30,10 @@ impl From<CompileError> for WasmError {
             CompileError::InvalidFieldKind => "INVALID_FIELD_KIND",
             CompileError::EmptyArrayElement => "EMPTY_ARRAY_ELEMENT",
             CompileError::InvalidFieldName => "INVALID_FIELD_NAME",
+            CompileError::UnknownCountField(_) => "UNKNOWN_COUNT_FIELD",
+            CompileError::InvalidCountField(_) => "INVALID_COUNT_FIELD",
+            CompileError::DynamicArrayNotAtTail(_) => "DYNAMIC_ARRAY_NOT_AT_TAIL",
+            CompileError::MultipleDynamicArrays => "MULTIPLE_DYNAMIC_ARRAYS",
         };
         WasmError::new(code, e.to_string())
     }
@@ -53,6 +57,8 @@ impl From<WriteError> for WasmError {
             WriteError::InvalidValue => "INVALID_VALUE",
             WriteError::MissingField(_) => "MISSING_FIELD",
             WriteError::UnsupportedValue { .. } => "UNSUPPORTED_VALUE",
+            WriteError::CountMismatch { .. } => "COUNT_MISMATCH",
+            WriteError::CountOverflow { .. } => "COUNT_OVERFLOW",
         };
         WasmError::new(code, e.to_string())
     }

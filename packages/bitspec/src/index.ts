@@ -8,6 +8,7 @@ export type {
   FieldDef,
   FragmentDef,
   FieldKindDef,
+  ArrayCountDef,
   AssembleDef,
   BitOrderDef,
   TransformDef,
