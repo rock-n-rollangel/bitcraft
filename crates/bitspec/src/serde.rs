@@ -65,6 +65,20 @@ pub struct FieldDef {
     pub transform: Option<TransformDef>,
 }
 
+/// Number of elements in an array field: a fixed count, or a reference to
+/// another field whose parsed value supplies the count at parse time.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(untagged)]
+pub enum ArrayCountDef {
+    /// Fixed, known-in-advance number of elements (plain JSON number).
+    Fixed(usize),
+    /// Count read from another field: `{ "from_field": "len" }`.
+    FromField {
+        /// Name of the (unsigned scalar) field holding the element count.
+        from_field: String,
+    },
+}
+
 /// Kind of field in the schema.
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(tag = "type")]
@@ -73,8 +87,8 @@ pub enum FieldKindDef {
     Scalar,
     /// Fixed‑size array of values laid out with a constant stride.
     Array {
-        /// Number of elements in the array.
-        count: usize,
+        /// Number of elements in the array (fixed or read from another field).
+        count: ArrayCountDef,
         /// Distance in bits between consecutive elements.
         stride_bits: usize,
         /// Bit offset of the first element from the start of the payload.

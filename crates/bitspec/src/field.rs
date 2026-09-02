@@ -71,7 +71,7 @@ impl From<crate::serde::FieldKindDef> for FieldKind {
                 stride_bits,
                 offset_bits,
             } => FieldKind::Array(ArraySpec {
-                count: crate::assembly::ArrayCount::Fixed(count),
+                count: count.into(),
                 stride_bits,
                 offset_bits,
             }),

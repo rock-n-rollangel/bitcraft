@@ -42,6 +42,18 @@ impl Default for BitOrder {
     }
 }
 
+#[cfg(feature = "serde")]
+impl From<crate::serde::ArrayCountDef> for ArrayCount {
+    fn from(value: crate::serde::ArrayCountDef) -> Self {
+        match value {
+            crate::serde::ArrayCountDef::Fixed(count) => ArrayCount::Fixed(count),
+            crate::serde::ArrayCountDef::FromField { from_field } => {
+                ArrayCount::FromField(from_field)
+            }
+        }
+    }
+}
+
 /// Number of elements in an array field.
 #[derive(Debug, Clone)]
 pub enum ArrayCount {
