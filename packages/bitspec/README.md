@@ -1,6 +1,6 @@
 # bitspec
 
-TypeScript wrapper around the [bitspec](https://github.com/rock-n-rollangel/bitcraft) schema engine, compiled to WebAssembly. Declare binary layouts as JSON, parse `Uint8Array` payloads into typed `Value` objects, and serialize them back.
+TypeScript wrapper around the [bitspec](https://github.com/rock-n-rollangel/bitspec) schema engine, compiled to WebAssembly. Declare binary layouts as JSON, parse `Uint8Array` payloads into typed `Value` objects, and serialize them back.
 
 `bitspec` targets protocols whose layout is decided at runtime — telemetry frames described by a config file, sensor payloads pulled from a device registry, or binary formats a user can edit. The same schema shape works in Rust (via the [`bitspec`](https://crates.io/crates/bitspec) crate) and in TypeScript, so a single definition can drive both a producer and a consumer.
 
@@ -203,7 +203,7 @@ The full set of `BitspecErrorCode` values:
 
 ## Building from source
 
-The package lives inside the [bitspec repo](https://github.com/rock-n-rollangel/bitcraft). From `packages/bitspec`:
+The package lives inside the [bitspec repo](https://github.com/rock-n-rollangel/bitspec). From `packages/bitspec`:
 
 ```bash
 npm install
@@ -216,4 +216,4 @@ npm test             # runs the Vitest suite
 
 ## License
 
-MIT. See [LICENSE](https://github.com/rock-n-rollangel/bitcraft/blob/main/LICENSE).
+MIT. See [LICENSE](https://github.com/rock-n-rollangel/bitspec/blob/main/LICENSE).

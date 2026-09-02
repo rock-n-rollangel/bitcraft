@@ -9,7 +9,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/rock-n-rollangel/bitcraft"
+    "url": "https://github.com/rock-n-rollangel/bitspec"
   },
   "files": [
     "bitspec_wasm_bg.wasm",
