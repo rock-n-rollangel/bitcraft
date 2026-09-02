@@ -106,7 +106,7 @@ bitspec/
 
 ## Status
 
-0.1.0, available as the [`bitspec`](https://crates.io/crates/bitspec) crate and the [`bitspec`](https://www.npmjs.com/package/bitspec) npm package. Pre-1.0, so the API may still shift between minor versions. `bitspec-wasm` is not published separately — it is built into the npm package.
+0.2.0, available as the [`bitspec`](https://crates.io/crates/bitspec) crate and the [`bitspec`](https://www.npmjs.com/package/bitspec) npm package. Pre-1.0, so the API may still shift between minor versions. `bitspec-wasm` is not published separately — it is built into the npm package.
 
 ## Contributing
 

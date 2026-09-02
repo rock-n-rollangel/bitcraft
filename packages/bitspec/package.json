@@ -1,6 +1,6 @@
 {
   "name": "bitspec",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Runtime bit-level parser and serializer for binary data described by declarative schemas, compiled to WebAssembly.",
   "type": "module",
   "license": "MIT",

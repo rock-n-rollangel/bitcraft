@@ -18,7 +18,7 @@ The Rust ecosystem already has excellent binary-format libraries. They divide cl
 
 ```toml
 [dependencies]
-bitspec = "0.1"
+bitspec = "0.2"
 ```
 
 ## Feature flags
@@ -30,7 +30,7 @@ Both flags are off by default. For full functionality:
 
 ```toml
 [dependencies]
-bitspec = { version = "0.1", features = ["serde", "transform"] }
+bitspec = { version = "0.2", features = ["serde", "transform"] }
 ```
 
 ## Core concepts
@@ -314,7 +314,7 @@ All four implement `std::error::Error` and `Display`.
 
 ## Performance
 
-The internal `read_bits_at` routine coalesces adjacent byte reads where possible, and `Schema::parse` walks the field list without allocating beyond the result map. On the write side there is still a known opportunity for a byte-level fast path in `write_bits_at` when the fragment is byte-aligned, which would avoid the per-bit shift loop. Formal benchmarks live under `benches/parse.rs` and `benches/serialize.rs` and will gain hard numbers ahead of the 0.1.0 release.
+The internal `read_bits_at` routine coalesces adjacent byte reads where possible, and `Schema::parse` walks the field list without allocating beyond the result map. On the write side there is still a known opportunity for a byte-level fast path in `write_bits_at` when the fragment is byte-aligned, which would avoid the per-bit shift loop. Formal benchmarks live under `benches/parse.rs` and `benches/serialize.rs`, covering scalar, fixed-array, dynamic-array, and non-contiguous-fragment schemas.
 
 ## Minimum supported Rust version
 
