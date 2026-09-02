@@ -227,18 +227,103 @@ impl Schema {
         }
     }
 
+    /// If this schema contains a dynamic array, returns its count field's name
+    /// and the element count derived from the array value in `obj`, after
+    /// validating any explicitly supplied count and the count field's width.
+    fn derive_dynamic_count(
+        &self,
+        obj: &std::collections::BTreeMap<String, crate::value::Value>,
+    ) -> Result<Option<(String, usize)>, WriteError> {
+        for field in &self.fields {
+            let CompiledFieldKind::Array(array) = &field.kind else {
+                continue;
+            };
+            let ArrayCount::FromField(count_name) = &array.count else {
+                continue;
+            };
+
+            let items = obj
+                .get(&field.name)
+                .ok_or_else(|| WriteError::MissingField(field.name.clone()))?;
+            let Value::Array(values) = items else {
+                return Err(WriteError::InvalidValue);
+            };
+            let count = values.len();
+
+            let count_scalar = self
+                .fields
+                .iter()
+                .find_map(|f| match &f.kind {
+                    CompiledFieldKind::Scalar(s) if &f.name == count_name => Some(s),
+                    _ => None,
+                })
+                .expect("count field validated at compile time");
+            let max = if count_scalar.total_bits == 64 {
+                u64::MAX
+            } else {
+                (1u64 << count_scalar.total_bits) - 1
+            };
+            if count as u64 > max {
+                return Err(WriteError::CountOverflow {
+                    field: count_name.clone(),
+                    count: count as u64,
+                });
+            }
+
+            if let Some(explicit) = obj.get(count_name) {
+                let explicit = match explicit {
+                    Value::U64(v) => *v,
+                    _ => return Err(WriteError::InvalidValue),
+                };
+                if explicit != count as u64 {
+                    return Err(WriteError::CountMismatch {
+                        field: count_name.clone(),
+                        expected: count as u64,
+                        actual: explicit,
+                    });
+                }
+            }
+
+            return Ok(Some((count_name.clone(), count)));
+        }
+        Ok(None)
+    }
+
     /// Serializes `obj` into bytes according to this schema, respecting [`WriteConfig`].
     pub fn serialize(
         &self,
         obj: &std::collections::BTreeMap<String, crate::value::Value>,
     ) -> Result<Vec<u8>, WriteError> {
-        let total_bytes = (self.total_bits + 7) / 8;
+        let derived_count = self.derive_dynamic_count(obj)?;
+
+        let mut total_bits = self.total_bits;
+        if let Some((_, count)) = &derived_count {
+            for field in &self.fields {
+                if let CompiledFieldKind::Array(array) = &field.kind {
+                    if matches!(array.count, ArrayCount::FromField(_)) {
+                        total_bits = total_bits
+                            .max(array_end_bits(array, *count).ok_or(WriteError::OutOfBounds)?);
+                    }
+                }
+            }
+        }
+        let total_bytes = (total_bits + 7) / 8;
         let mut buf = vec![0u8; total_bytes];
 
         for field in &self.fields {
-            let value = obj
-                .get(&field.name)
-                .ok_or_else(|| WriteError::MissingField(field.name.clone()))?;
+            // The count field of a dynamic array may be omitted from `obj`;
+            // its value is derived from the array's actual length.
+            let derived_value = match &derived_count {
+                Some((name, count)) if name == &field.name => {
+                    Some(Value::U64(*count as u64))
+                }
+                _ => None,
+            };
+            let value = match (&derived_value, obj.get(&field.name)) {
+                (_, Some(value)) => value,
+                (Some(derived), None) => derived,
+                (None, None) => return Err(WriteError::MissingField(field.name.clone())),
+            };
 
             match &field.kind {
                 CompiledFieldKind::Scalar(scalar) => {

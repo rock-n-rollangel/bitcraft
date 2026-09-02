@@ -92,6 +92,23 @@ pub enum WriteError {
     InvalidValue,
     /// Required field missing from the input object.
     MissingField(String),
+    /// An explicitly supplied count field value disagrees with the dynamic
+    /// array's actual length.
+    CountMismatch {
+        /// Name of the count field.
+        field: String,
+        /// The dynamic array's actual element count.
+        expected: u64,
+        /// The value supplied for the count field.
+        actual: u64,
+    },
+    /// The dynamic array's length does not fit in the count field's bit width.
+    CountOverflow {
+        /// Name of the count field.
+        field: String,
+        /// The dynamic array's actual element count.
+        count: u64,
+    },
     /// The provided value variant (e.g. F32/F64/Bytes/String) is not supported for serialization.
     UnsupportedValue {
         /// Name of the field that received the unsupported value.
@@ -107,6 +124,18 @@ impl fmt::Display for WriteError {
             Self::OutOfBounds => write!(f, "buffer is too short to write the value"),
             Self::InvalidValue => write!(f, "value cannot be written to this field"),
             Self::MissingField(name) => write!(f, "missing field '{name}' in object"),
+            Self::CountMismatch {
+                field,
+                expected,
+                actual,
+            } => write!(
+                f,
+                "count field '{field}' is {actual} but the dynamic array holds {expected} elements"
+            ),
+            Self::CountOverflow { field, count } => write!(
+                f,
+                "dynamic array length {count} does not fit in count field '{field}'"
+            ),
             Self::UnsupportedValue { field, variant } => write!(
                 f,
                 "field '{field}' received Value::{variant}; serialize accepts only U64, I64, and Array"
