@@ -1,5 +1,5 @@
 use bitspec::{
-    assembly::{Assemble, BitOrder},
+    assembly::{ArrayCount, Assemble, BitOrder},
     field::{ArraySpec, Field, FieldKind},
     fragment::Fragment,
     schema::Schema,
@@ -41,7 +41,7 @@ fn bench_parse_array(c: &mut Criterion) {
     for &n in &[10usize, 1000] {
         let field = Field {
             name: "arr".into(),
-            kind: FieldKind::Array(ArraySpec { count: bitspec::assembly::ArrayCount::Fixed(n), stride_bits: 8, offset_bits: 0 }),
+            kind: FieldKind::Array(ArraySpec { count: ArrayCount::Fixed(n), stride_bits: 8, offset_bits: 0 }),
             signed: false,
             assemble: Assemble::Concat(BitOrder::MsbFirst),
             fragments: vec![Fragment::new(0, 8)],
@@ -75,5 +75,42 @@ fn bench_parse_non_contiguous(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, bench_parse_scalars, bench_parse_array, bench_parse_non_contiguous);
+fn bench_parse_dynamic_array(c: &mut Criterion) {
+    for &n in &[10usize, 1000] {
+        let len = Field {
+            name: "len".into(),
+            kind: FieldKind::Scalar,
+            signed: false,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
+            fragments: vec![Fragment::new(0, 16)],
+            transform: None,
+        };
+        let items = Field {
+            name: "arr".into(),
+            kind: FieldKind::Array(ArraySpec {
+                count: ArrayCount::FromField("len".into()),
+                stride_bits: 8,
+                offset_bits: 16,
+            }),
+            signed: false,
+            assemble: Assemble::Concat(BitOrder::MsbFirst),
+            fragments: vec![Fragment::new(0, 8)],
+            transform: None,
+        };
+        let schema = Schema::compile(&[len, items], None).unwrap();
+        let mut data = vec![(n >> 8) as u8, n as u8];
+        data.extend_from_slice(&packet(n * 8));
+        c.bench_function(&format!("parse_dynamic_array_{}", n), |b| {
+            b.iter(|| schema.parse(&data).unwrap());
+        });
+    }
+}
+
+criterion_group!(
+    benches,
+    bench_parse_scalars,
+    bench_parse_array,
+    bench_parse_dynamic_array,
+    bench_parse_non_contiguous
+);
 criterion_main!(benches);
