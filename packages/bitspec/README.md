@@ -132,10 +132,15 @@ interface SchemaDef {
   write_config?: { bit_order?: "MsbFirst" | "LsbFirst" };
 }
 
+// number = fixed count; { from_field } reads the count from another
+// (unsigned scalar) field in the packet. A dynamic array must be the
+// last thing in the layout.
+type ArrayCountDef = number | { from_field: string };
+
 interface FieldDef {
   name: string;
   kind: { type: "Scalar" }
-      | { type: "Array"; count: number; stride_bits: number; offset_bits: number };
+      | { type: "Array"; count: ArrayCountDef; stride_bits: number; offset_bits: number };
   signed: boolean;
   assemble: "ConcatMsb" | "ConcatLsb";
   fragments: { offset_bits: number; len_bits: number; bit_order?: "MsbFirst" | "LsbFirst" }[];
@@ -173,6 +178,10 @@ The full set of `BitspecErrorCode` values:
 | `INVALID_FIELD_KIND` | Field kind is unsupported. |
 | `EMPTY_ARRAY_ELEMENT` | An array element has no fragments. |
 | `INVALID_FIELD_NAME` | Field name is empty or duplicates another. |
+| `UNKNOWN_COUNT_FIELD` | A dynamic array references a count field that does not exist. |
+| `INVALID_COUNT_FIELD` | A count field is not a plain unsigned scalar without a transform. |
+| `DYNAMIC_ARRAY_NOT_AT_TAIL` | Another field extends past the dynamic array's start offset. |
+| `MULTIPLE_DYNAMIC_ARRAYS` | A schema may contain at most one dynamic array. |
 | `READ_OUT_OF_BOUNDS` | A fragment's bit range extends past the end of the payload. |
 | `TOO_MANY_BITS_READ` | More than 64 bits were requested in a single read. |
 | `PACKET_TOO_SHORT` | Payload is shorter than the schema's total bit length. |
@@ -180,6 +189,8 @@ The full set of `BitspecErrorCode` values:
 | `INVALID_VALUE` | A value cannot be written to its field (e.g. array length mismatch). |
 | `MISSING_FIELD` | `serialize` received an object missing a schema field. |
 | `UNSUPPORTED_VALUE` | `serialize` received an `f32`/`f64`/`bytes`/`string` for a scalar field. |
+| `COUNT_MISMATCH` | An explicitly supplied count disagrees with the dynamic array's length. |
+| `COUNT_OVERFLOW` | The dynamic array's length does not fit in the count field's bit width. |
 | `INVALID_BASE` | Transform's base type cannot be applied to the given value. |
 | `INVALID_TYPE` | Transform config is internally inconsistent (e.g. encoding on non-bytes). |
 | `INVALID_ENUM_VALUE` | An integer value has no entry in the transform's enum map. |

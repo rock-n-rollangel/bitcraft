@@ -36,7 +36,7 @@ bitspec = { version = "0.1", features = ["serde", "transform"] }
 ## Core concepts
 
 - **`Fragment`** — a contiguous bit range (`offset_bits`, `len_bits`) with an optional per-fragment `BitOrder`. The building block every field is made of.
-- **`Field`** — a named `Scalar` or fixed-size `Array` of scalars. Points at one or more fragments and says how they combine (`Assemble::Concat(BitOrder::MsbFirst | LsbFirst)`), whether the assembled value is signed, and optionally carries a `Transform`.
+- **`Field`** — a named `Scalar` or `Array` of scalars (fixed-count or length-prefixed). Points at one or more fragments and says how they combine (`Assemble::Concat(BitOrder::MsbFirst | LsbFirst)`), whether the assembled value is signed, and optionally carries a `Transform`.
 - **`Schema`** — the compiled result. Produced by `Schema::compile(&[Field], Option<WriteConfig>)`, it knows the total bit length and exposes `parse`, `serialize`, and (with `transform`) `apply_transforms`.
 - **`Value`** — a 7-variant enum (`U64`, `I64`, `F32`, `F64`, `Bytes`, `String`, `Array`) used for both parse output and serialize input. Parse emits `U64`/`I64`/`Array`; transforms can widen the type set; serialize currently accepts `U64`/`I64`/`Array`.
 
@@ -120,10 +120,10 @@ assert_eq!(parsed, obj);
 
 ## Arrays
 
-Use `FieldKind::Array(ArraySpec { count, stride_bits, offset_bits })` to describe a fixed-count array whose elements sit at regular intervals. The element layout is whatever the field's `fragments` describe; the array repeats that layout `count` times with `stride_bits` between starts, beginning at `offset_bits`.
+Use `FieldKind::Array(ArraySpec { count, stride_bits, offset_bits })` to describe an array whose elements sit at regular intervals. The element layout is whatever the field's `fragments` describe; the array repeats that layout `count` times with `stride_bits` between starts, beginning at `offset_bits`.
 
 ```rust
-use bitspec::assembly::{Assemble, BitOrder};
+use bitspec::assembly::{ArrayCount, Assemble, BitOrder};
 use bitspec::field::{ArraySpec, Field, FieldKind};
 use bitspec::fragment::Fragment;
 use bitspec::schema::Schema;
@@ -131,7 +131,7 @@ use bitspec::value::Value;
 
 let samples = Field {
     name: "samples".into(),
-    kind: FieldKind::Array(ArraySpec { count: 4, stride_bits: 8, offset_bits: 0 }),
+    kind: FieldKind::Array(ArraySpec { count: ArrayCount::Fixed(4), stride_bits: 8, offset_bits: 0 }),
     signed: false,
     assemble: Assemble::Concat(BitOrder::MsbFirst),
     fragments: vec![Fragment::new(0, 8)],
@@ -146,6 +146,51 @@ assert_eq!(
         Value::U64(1), Value::U64(2), Value::U64(3), Value::U64(4),
     ])),
 );
+```
+
+### Length-prefixed arrays
+
+`ArrayCount::FromField("len")` reads the element count from another field in the packet instead of fixing it in the schema. The count field must be an unsigned scalar without a transform, and the dynamic array must be the last thing in the layout (nothing may extend past its `offset_bits`). On `serialize`, the count field may be omitted from the input object — it is derived from the array's actual length (an explicitly supplied value must match).
+
+```rust
+use bitspec::assembly::{ArrayCount, Assemble, BitOrder};
+use bitspec::field::{ArraySpec, Field, FieldKind};
+use bitspec::fragment::Fragment;
+use bitspec::schema::Schema;
+use bitspec::value::Value;
+use std::collections::BTreeMap;
+
+let len = Field {
+    name: "len".into(),
+    kind: FieldKind::Scalar,
+    signed: false,
+    assemble: Assemble::Concat(BitOrder::MsbFirst),
+    fragments: vec![Fragment::new(0, 8)],
+    transform: None,
+};
+let items = Field {
+    name: "items".into(),
+    kind: FieldKind::Array(ArraySpec {
+        count: ArrayCount::FromField("len".into()),
+        stride_bits: 8,
+        offset_bits: 8,
+    }),
+    signed: false,
+    assemble: Assemble::Concat(BitOrder::MsbFirst),
+    fragments: vec![Fragment::new(0, 8)],
+    transform: None,
+};
+let schema = Schema::compile(&[len, items], None).unwrap();
+
+let parsed = schema.parse(&[0x03, 0x0A, 0x0B, 0x0C]).unwrap();
+assert_eq!(parsed.get("len"), Some(&Value::U64(3)));
+
+// serialize derives the count field from the array length
+let obj = BTreeMap::from([(
+    "items".to_string(),
+    Value::Array(vec![Value::U64(1), Value::U64(2)]),
+)]);
+assert_eq!(schema.serialize(&obj).unwrap(), vec![0x02, 0x01, 0x02]);
 ```
 
 ## Non-contiguous fragments

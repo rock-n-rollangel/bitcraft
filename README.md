@@ -9,7 +9,7 @@ Most binary protocols in the wild pack fields across awkward bit boundaries: a 4
 - **Runtime schemas** — `Vec<Field>` or JSON in, compiled `Schema` out. No derive macros, no code generation.
 - **Bit-level fragments** — fields can be any width from 1 to 64 bits, at any bit offset, with MSB- or LSB-first ordering.
 - **Non-contiguous fields** — one logical value can span multiple disjoint bit ranges and be reassembled.
-- **Fixed-size arrays** — repeated elements with a configurable stride, in bits.
+- **Arrays** — repeated elements with a configurable stride, in bits. The element count is either fixed in the schema or read from another field in the packet (length-prefixed payloads).
 - **Optional transforms** — scale/offset, enum maps, UTF-8/ASCII decoding, and IEEE-754 reinterpretation as a post-parse step (gated behind the `transform` feature).
 - **Shared schema shape** — the same JSON schema works from Rust (`bitspec::serde::SchemaDef`) and TypeScript (`SchemaDef`).
 
