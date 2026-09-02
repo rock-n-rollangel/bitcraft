@@ -5,14 +5,14 @@
   "type": "module",
   "license": "MIT",
   "author": "Valera Dolgov <sxmebytes@gmail.com>",
-  "homepage": "https://github.com/somebytes/bitspec#readme",
+  "homepage": "https://github.com/rock-n-rollangel/bitcraft#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/somebytes/bitspec.git",
+    "url": "git+https://github.com/rock-n-rollangel/bitcraft.git",
     "directory": "packages/bitspec"
   },
   "bugs": {
-    "url": "https://github.com/somebytes/bitspec/issues"
+    "url": "https://github.com/rock-n-rollangel/bitcraft/issues"
   },
   "keywords": [
     "binary",
